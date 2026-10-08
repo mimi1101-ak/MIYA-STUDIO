@@ -2,9 +2,10 @@
 // 날짜는 "YYYY-MM-DD" 글자로 주고받습니다(DB의 date 형식과 같음).
 
 const TIME_ZONE = "Asia/Seoul"
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
-
-export type Period = "today" | "week" | "month"
+export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
+// 한국은 서머타임이 없어 항상 UTC+9입니다.
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+const MINUTE_MS = 60_000
 
 export function todayKST(now: Date = new Date()): string {
   // en-CA 형식은 YYYY-MM-DD로 나옵니다.
@@ -20,7 +21,7 @@ function toUtcDate(ymd: string): Date {
   return new Date(`${ymd}T00:00:00Z`)
 }
 
-function addDays(ymd: string, days: number): string {
+export function addDays(ymd: string, days: number): string {
   const d = toUtcDate(ymd)
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
@@ -39,11 +40,66 @@ export function monthStartKST(now: Date = new Date()): string {
   return `${todayKST(now).slice(0, 8)}01`
 }
 
-// 할 일 묶음별 기준 날짜: 오늘=오늘 날짜, 주간=이번 주 월요일, 월간=이번 달 1일
-export function targetDateFor(period: Period, now: Date = new Date()): string {
-  if (period === "week") return weekStartKST(now)
-  if (period === "month") return monthStartKST(now)
-  return todayKST(now)
+// 그 날짜가 속한 주의 월요일
+export function weekStartOf(ymd: string): string {
+  return addDays(ymd, -((weekdayOf(ymd) + 6) % 7))
+}
+
+// 그 달의 날 수
+export function daysInMonth(ymd: string): number {
+  const d = toUtcDate(`${ymd.slice(0, 8)}01`)
+  d.setUTCMonth(d.getUTCMonth() + 1, 0)
+  return d.getUTCDate()
+}
+
+// 요일 숫자: 0=일, 1=월 … 6=토
+export function weekdayOf(ymd: string): number {
+  return toUtcDate(ymd).getUTCDay()
+}
+
+// ── 시각 계산 ──────────────────────────────────────────────
+// 화면과 배치 규칙에서는 "한국 날짜(YYYY-MM-DD) + 그날 0시부터 지난 분"으로 다루고,
+// DB에는 실제 시각(timestamptz)으로 저장합니다. ms는 1970년부터 지난 밀리초입니다.
+
+export function kstToMs(ymd: string, minutes = 0): number {
+  return Date.parse(`${ymd}T00:00:00Z`) - KST_OFFSET_MS + minutes * MINUTE_MS
+}
+
+export function msToKst(ms: number): { ymd: string; minutes: number } {
+  const shifted = new Date(ms + KST_OFFSET_MS)
+  return {
+    ymd: shifted.toISOString().slice(0, 10),
+    minutes: shifted.getUTCHours() * 60 + shifted.getUTCMinutes(),
+  }
+}
+
+export function kstToIso(ymd: string, minutes = 0): string {
+  return new Date(kstToMs(ymd, minutes)).toISOString()
+}
+
+// 540 → "09:00"
+export function formatClock(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
+// "09:00" 또는 DB의 "09:00:00" → 540. 형식이 틀리면 null
+export function parseClock(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value)
+  if (!match) return null
+  const h = Number(match[1])
+  const m = Number(match[2])
+  if (h > 24 || m > 59 || (h === 24 && m > 0)) return null
+  return h * 60 + m
+}
+
+// 90 → "1시간 30분"
+export function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h && m) return `${h}시간 ${m}분`
+  return h ? `${h}시간` : `${m}분`
 }
 
 function monthDay(ymd: string): string {

@@ -71,6 +71,78 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          starts_at: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          starts_at: string
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          starts_at?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          chat: Json
+          created_at: string
+          deadline: string | null
+          description: string
+          id: string
+          plan: Json | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          weekly_minutes: number | null
+        }
+        Insert: {
+          chat?: Json
+          created_at?: string
+          deadline?: string | null
+          description?: string
+          id?: string
+          plan?: Json | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id?: string
+          weekly_minutes?: number | null
+        }
+        Update: {
+          chat?: Json
+          created_at?: string
+          deadline?: string | null
+          description?: string
+          id?: string
+          plan?: Json | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weekly_minutes?: number | null
+        }
+        Relationships: []
+      }
       insights: {
         Row: {
           article_id: string | null
@@ -114,16 +186,25 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          work_days: number[]
+          work_end: string
+          work_start: string
         }
         Insert: {
           created_at?: string
           display_name?: string
           id: string
+          work_days?: number[]
+          work_end?: string
+          work_start?: string
         }
         Update: {
           created_at?: string
           display_name?: string
           id?: string
+          work_days?: number[]
+          work_end?: string
+          work_start?: string
         }
         Relationships: []
       }
@@ -157,41 +238,123 @@ export type Database = {
         }
         Relationships: []
       }
-      tasks: {
+      routine_checks: {
+        Row: {
+          check_date: string
+          created_at: string
+          routine_id: string
+          user_id: string
+        }
+        Insert: {
+          check_date: string
+          created_at?: string
+          routine_id: string
+          user_id?: string
+        }
+        Update: {
+          check_date?: string
+          created_at?: string
+          routine_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routine_checks_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routines: {
         Row: {
           created_at: string
+          duration_minutes: number
+          id: string
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes: number
+          id?: string
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id?: string
+          weekdays: number[]
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weekdays?: number[]
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          carry_count: number
+          created_at: string
+          done_at: string | null
+          estimated_minutes: number
+          goal_id: string | null
           id: string
           is_done: boolean
-          period: string
+          scheduled_at: string | null
           sort_order: number
-          target_date: string
+          source: string
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          carry_count?: number
           created_at?: string
+          done_at?: string | null
+          estimated_minutes?: number
+          goal_id?: string | null
           id?: string
           is_done?: boolean
-          period: string
+          scheduled_at?: string | null
           sort_order?: number
-          target_date: string
+          source?: string
           title: string
           updated_at?: string
           user_id?: string
         }
         Update: {
+          carry_count?: number
           created_at?: string
+          done_at?: string | null
+          estimated_minutes?: number
+          goal_id?: string | null
           id?: string
           is_done?: boolean
-          period?: string
+          scheduled_at?: string | null
           sort_order?: number
-          target_date?: string
+          source?: string
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

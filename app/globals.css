@@ -126,6 +126,12 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Next.js 기본 404 화면 스타일(어두운 모드에서 검은 배경·흰 글자)이 섞여 들어와도 화면 색이 바뀌지 않게 */
+html body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -137,5 +143,47 @@
     @apply font-sans;
     /* 한글은 단어 단위로 줄바꿈 */
     word-break: keep-all;
+  }
+}
+/* 캘린더(FullCalendar): 차분한 무채색에 맞춤 */
+.fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--card);
+  --fc-neutral-bg-color: oklch(0.985 0 0);
+  --fc-non-business-color: oklch(0.96 0 0 / 70%);
+  --fc-today-bg-color: oklch(0.97 0.005 250 / 60%);
+  --fc-now-indicator-color: var(--foreground);
+  --fc-highlight-color: oklch(0.9 0 0 / 50%);
+  font-size: 0.8rem;
+}
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: var(--foreground);
+  text-decoration: none;
+}
+.fc .fc-event {
+  cursor: pointer;
+}
+.fc .ev-routine {
+  border-style: dashed;
+}
+.fc .ev-done {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.fc .ev-dim {
+  opacity: 0.2;
+}
+/* 휴대폰: 7일을 한 화면에 담도록 글자를 줄입니다 */
+@media (max-width: 639px) {
+  .fc {
+    font-size: 0.68rem;
+  }
+  .fc .fc-col-header-cell-cushion {
+    padding: 2px 0;
+    white-space: normal;
+  }
+  .fc .fc-timegrid-event .fc-event-main {
+    padding: 1px;
   }
 }

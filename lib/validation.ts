@@ -2,6 +2,11 @@
 
 export const LIMITS = {
   taskTitle: 200,
+  taskMinMinutes: 5,
+  taskMaxMinutes: 720,
+  goalTitle: 200,
+  goalDescription: 2000,
+  chatMessage: 2000,
   displayName: 50,
   projectName: 100,
   projectDescription: 300,
@@ -42,4 +47,29 @@ export function isUuid(value: unknown): value is string {
 }
 
 // 서버 액션이 돌려주는 결과 모양
-export type ActionResult = { ok: true } | { ok: false; error: string }
+export type ActionResult = { ok: true; message?: string } | { ok: false; error: string }
+
+// 0시부터 지난 분(0~1439)
+export function isMinuteOfDay(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value < 24 * 60
+}
+
+// 할 일·일정·루틴의 길이(분)
+export function isDuration(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= LIMITS.taskMinMinutes &&
+    value <= LIMITS.taskMaxMinutes
+  )
+}
+
+export function isWeekdayList(value: unknown): value is number[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 1 &&
+    value.length <= 7 &&
+    new Set(value).size === value.length &&
+    value.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+  )
+}

@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
-  { href: "/", label: "대시보드" },
-  { href: "/planner", label: "플래너" },
+  { href: "/", label: "오늘" },
+  { href: "/calendar", label: "캘린더" },
+  { href: "/goals", label: "목표" },
   { href: "/news", label: "뉴스" },
   { href: "/insights", label: "인사이트" },
   { href: "/projects", label: "프로젝트" },
@@ -23,7 +24,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-1 px-4 pt-3 md:flex-row md:items-center md:justify-between md:gap-6 md:px-6 md:py-3">
         <Link href="/" className="text-base font-semibold tracking-tight">
-          24시간 비서
+          MIYA STUDIO
         </Link>
         <nav aria-label="주 메뉴" className="no-scrollbar -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
           <ul className="flex min-w-max gap-1 pb-2 md:pb-0">

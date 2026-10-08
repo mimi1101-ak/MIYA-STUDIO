@@ -1,44 +1,33 @@
+import { Sparkles } from "lucide-react"
 import Link from "next/link"
 import { Suspense } from "react"
 
 import { DailyMessage } from "@/components/daily-message"
 import { LoadingBlock, PageShell } from "@/components/page-shell"
-import { TaskList } from "@/components/task-list"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { TodayBoard } from "@/components/today/today-board"
+import { buttonVariants } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { loadGoalProgress, loadToday } from "@/lib/agenda"
+import { percent, type GoalProgress } from "@/lib/agenda-types"
 import { requireUser } from "@/lib/auth"
-import { formatDayLabel, todayKST } from "@/lib/date"
-import { fetchTasks } from "@/lib/tasks"
+import { formatDayLabel, formatDuration, formatWeekLabel, todayKST, weekStartKST } from "@/lib/date"
 
-const SHORTCUTS = [
-  { href: "/planner", title: "플래너", description: "주간 할 일·월간 목표" },
-  { href: "/news", title: "뉴스·트렌드", description: "EO planet · Long Black · 네이버" },
-  { href: "/insights", title: "인사이트", description: "정리한 생각 모아 보기" },
-  { href: "/projects", title: "마이 프로젝트", description: "내가 만든 사이트로 이동" },
-]
-
-export default function DashboardPage() {
+// "오늘" 화면: 실행에 집중. 맨 위 AI 메시지 → 지금 할 일 → 타임라인 → 빠른 입력, 오른쪽에 목표 진척도
+export default function TodayPage() {
   return (
     <PageShell>
       <Suspense fallback={<LoadingBlock lines={2} />}>
         <TodayMessage />
       </Suspense>
 
-      <Suspense fallback={<LoadingBlock lines={4} />}>
-        <TodayTasks />
-      </Suspense>
-
-      <section aria-label="바로가기" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {SHORTCUTS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex flex-col gap-1 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted/60"
-          >
-            <span className="text-sm font-medium">{item.title}</span>
-            <span className="text-xs text-muted-foreground">{item.description}</span>
-          </Link>
-        ))}
-      </section>
+      <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_17rem]">
+        <Suspense fallback={<LoadingBlock lines={8} />}>
+          <TodayContent />
+        </Suspense>
+        <Suspense fallback={<LoadingBlock lines={4} />}>
+          <WeeklyGoals />
+        </Suspense>
+      </div>
     </PageShell>
   )
 }
@@ -57,34 +46,90 @@ async function TodayMessage() {
   return <DailyMessage initialContent={data?.content ?? null} dateLabel={formatDayLabel(today)} />
 }
 
-async function TodayTasks() {
-  const { supabase } = await requireUser()
-  const today = todayKST()
-  const tasks = await fetchTasks(supabase, "today", today)
+async function TodayContent() {
+  const { supabase, userId } = await requireUser()
+  const data = await loadToday(supabase, userId)
+  if (!data) {
+    return <p className="text-sm text-destructive">오늘 일정을 불러오지 못했어요. 새로고침해 주세요.</p>
+  }
 
   return (
-    <Card>
+    <TodayBoard
+      today={data.today}
+      initialNow={data.minutes}
+      items={data.items}
+      goals={data.goals}
+      unscheduled={data.unscheduled}
+      oftenCarried={data.oftenCarried}
+    />
+  )
+}
+
+async function WeeklyGoals() {
+  const { supabase } = await requireUser()
+  const weekStart = weekStartKST()
+  const goals = await loadGoalProgress(supabase, weekStart)
+
+  return (
+    <Card size="sm">
       <CardHeader>
-        <CardTitle>오늘 할 일</CardTitle>
-        <CardDescription>{formatDayLabel(today)}</CardDescription>
-        <CardAction>
-          <Link href="/planner" className="text-xs text-muted-foreground hover:text-foreground">
-            플래너 열기
-          </Link>
-        </CardAction>
+        <CardTitle>이번 주 목표</CardTitle>
+        <CardDescription>{formatWeekLabel(weekStart)}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {tasks ? (
-          <TaskList
-            period="today"
-            tasks={tasks}
-            placeholder="오늘 할 일 추가"
-            emptyText="아직 오늘 할 일이 없어요. 첫 할 일을 적어 볼까요?"
-          />
+      <CardContent className="flex flex-col gap-4">
+        {!goals ? (
+          <p className="text-sm text-destructive">목표를 불러오지 못했어요.</p>
+        ) : goals.length === 0 ? (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-sm text-muted-foreground">아직 진행 중인 목표가 없어요.</p>
+            <Link href="/goals/new" className={buttonVariants({ size: "sm", variant: "outline" })}>
+              <Sparkles data-icon="inline-start" />
+              AI 비서와 목표 세우기
+            </Link>
+          </div>
         ) : (
-          <p className="text-sm text-destructive">할 일을 불러오지 못했어요. 새로고침해 주세요.</p>
+          <>
+            <ul className="flex flex-col gap-4">
+              {goals.map((goal) => (
+                <GoalProgressRow key={goal.id} goal={goal} />
+              ))}
+            </ul>
+            <Link href="/goals" className="text-xs text-muted-foreground hover:text-foreground">
+              목표 모두 보기
+            </Link>
+          </>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function GoalProgressRow({ goal }: { goal: GoalProgress }) {
+  const week = percent(goal.weekDone, goal.weekTotal)
+  return (
+    <li className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <Link href={`/goals/${goal.id}`} className="min-w-0 truncate text-sm font-medium hover:underline">
+          {goal.title}
+        </Link>
+        <span className="text-sm tabular-nums">{goal.weekTotal > 0 ? `${week}%` : "-"}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={`${goal.title} 이번 주 진척도`}
+        aria-valuenow={week}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full rounded-full bg-foreground/80" style={{ width: `${week}%` }} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {goal.weekTotal > 0
+          ? `이번 주 ${formatDuration(goal.weekDone)} / ${formatDuration(goal.weekTotal)}`
+          : "이번 주에 잡힌 할 일 없음"}
+        {" · "}전체 {percent(goal.done, goal.total)}%
+      </p>
+    </li>
   )
 }

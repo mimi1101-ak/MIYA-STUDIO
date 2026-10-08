@@ -5,7 +5,8 @@ import { redirect } from "next/navigation"
 
 import { requireUser } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
-import { cleanText, LIMITS, type ActionResult } from "@/lib/validation"
+import { formatClock } from "@/lib/date"
+import { cleanText, isMinuteOfDay, isWeekdayList, LIMITS, type ActionResult } from "@/lib/validation"
 
 export async function updateDisplayName(rawName: string): Promise<ActionResult> {
   const displayName = cleanText(rawName)
@@ -19,6 +20,31 @@ export async function updateDisplayName(rawName: string): Promise<ActionResult> 
   const { error } = await supabase
     .from("profiles")
     .upsert({ id: userId, display_name: displayName }, { onConflict: "id" })
+  if (error) return { ok: false, error: "저장하지 못했어요. 잠시 후 다시 시도해 주세요." }
+
+  refresh()
+  return { ok: true }
+}
+
+// 일할 수 있는 시간: AI·자동 배치가 할 일을 넣는 시간대
+export async function updateWorkHours(days: number[], start: number, end: number): Promise<ActionResult> {
+  if (!isWeekdayList(days) || !isMinuteOfDay(start) || !isMinuteOfDay(end)) {
+    return { ok: false, error: "잘못된 요청이에요." }
+  }
+  if (end - start < 30) return { ok: false, error: "끝 시각은 시작보다 30분 이상 뒤여야 해요." }
+  const { supabase, userId } = await requireUser()
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        work_days: [...days].sort(),
+        work_start: formatClock(start),
+        work_end: formatClock(end),
+      },
+      { onConflict: "id" }
+    )
   if (error) return { ok: false, error: "저장하지 못했어요. 잠시 후 다시 시도해 주세요." }
 
   refresh()
