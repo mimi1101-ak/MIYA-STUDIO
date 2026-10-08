@@ -1,8 +1,16 @@
 "use client"
 
-import { Check, Loader2, Sparkles } from "lucide-react"
+import { Check, ExternalLink, Loader2, Lock, Sparkles } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useId, useState, useSyncExternalStore, useTransition, type FormEvent } from "react"
+import {
+  useEffect,
+  useId,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type FormEvent,
+  type MouseEvent,
+} from "react"
 
 import { ArticleCard } from "@/components/article-card"
 import { Badge } from "@/components/ui/badge"
@@ -89,6 +97,20 @@ function useHydrated() {
   return useSyncExternalStore(noSubscribe, () => true, () => false)
 }
 
+// 사이트를 작은 옆 창으로 엽니다. 사이트를 직접 연 것이라 그 창에서는 로그인이 됩니다.
+// 휴대폰처럼 좁은 화면이거나 창이 막히면 링크 그대로 새 탭으로 열립니다.
+function openSideWindow(event: MouseEvent<HTMLAnchorElement>, site: NewsSite) {
+  if (window.matchMedia("(max-width: 639px)").matches) return
+  const width = 460
+  const height = Math.min(900, window.screen.availHeight - 40)
+  const left = Math.max(0, window.screenX + window.outerWidth - width - 20)
+  const popup = window.open(site.openUrl, `miya-${site.source}`, `popup,width=${width},height=${height},left=${left},top=40`)
+  if (!popup) return
+  // 열린 사이트가 우리 화면을 건드리지 못하게 연결을 끊습니다.
+  popup.opener = null
+  event.preventDefault()
+}
+
 function SiteFrame({ site }: { site: NewsSite }) {
   // 사이트 칸은 브라우저에서 화면이 준비된 뒤에 만듭니다. 그래야 "다 불러왔다"는 신호를 놓치지 않습니다.
   const hydrated = useHydrated()
@@ -102,8 +124,8 @@ function SiteFrame({ site }: { site: NewsSite }) {
       aria-label={site.label}
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
-      <div className="flex items-start justify-between gap-2 border-b px-3 py-2.5">
-        <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b px-3 py-2.5 sm:flex-nowrap">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             {site.label}
             {!loaded && (
@@ -113,19 +135,31 @@ function SiteFrame({ site }: { site: NewsSite }) {
             )}
           </h2>
           <p className="text-xs text-muted-foreground">{site.hint}</p>
+          <p className="flex items-start gap-1 text-xs">
+            <Lock className="mt-0.5 size-3 shrink-0" aria-hidden />
+            {site.loginNote}
+          </p>
         </div>
-        <div className="flex shrink-0 gap-1">
-          <Button type="button" size="xs" variant="ghost" onClick={() => setReloadKey((k) => k + 1)}>
-            처음으로
-          </Button>
+        <div className="flex w-full shrink-0 gap-1 sm:w-auto sm:flex-col sm:items-end">
           <a
             href={site.openUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline", size: "xs" })}
+            onClick={(event) => openSideWindow(event, site)}
+            className={buttonVariants({ size: "xs", className: "flex-1 sm:flex-none" })}
           >
-            새 탭 ↗
+            로그인해서 보기
+            <ExternalLink data-icon="inline-end" />
           </a>
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => setReloadKey((k) => k + 1)}
+          >
+            처음으로
+          </Button>
         </div>
       </div>
       {/* 다른 사이트가 우리 화면 전체를 다른 주소로 바꾸지 못하게 sandbox로 권한을 줄여 둡니다. */}

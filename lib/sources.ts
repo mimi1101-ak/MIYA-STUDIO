@@ -21,6 +21,8 @@ export const NEWS_SITES: {
   embedUrl: string
   openUrl: string
   hint: string
+  // 이 칸 안에서는 안 되는 것 (사이트의 로그인 쿠키가 다른 사이트 안에서는 보내지지 않아서)
+  loginNote: string
   categoryPlaceholder: string
 }[] = [
   {
@@ -29,6 +31,7 @@ export const NEWS_SITES: {
     embedUrl: "https://eopla.net/magazines",
     openUrl: "https://eopla.net/magazines",
     hint: "맨 위 '오늘 많이 본 아티클'이 인기글이에요.",
+    loginNote: "로그인·좋아요·댓글은 이 칸에서는 안 돼요",
     categoryPlaceholder: "분야 (예: 창업, 커리어)",
   },
   {
@@ -36,7 +39,8 @@ export const NEWS_SITES: {
     label: "Long Black",
     embedUrl: "https://www.longblack.co/",
     openUrl: "https://www.longblack.co/",
-    hint: "오늘의 노트 아래로 내리면 '베스트 노트'가 있어요. 유료 글은 새 탭에서 로그인해 읽어요.",
+    hint: "오늘의 노트 아래로 내리면 '베스트 노트'가 있어요.",
+    loginNote: "로그인·유료 글 읽기는 이 칸에서는 안 돼요",
     categoryPlaceholder: "분류 (예: 브랜드, 라이프)",
   },
 ]
