@@ -1,45 +1,42 @@
 // 뉴스·트렌드 출처 정보
+// 네이버는 자동 수집과 다른 사이트 안에 띄우기를 모두 막고 있어 2026-10-08에 출처에서 뺐습니다(DECISIONS.md 6장).
+// DB(articles.source)는 예전 값(naver_market, naver_trend)도 허용하지만 화면에서는 쓰지 않습니다.
 
-export const ARTICLE_SOURCES = ["eo_planet", "long_black", "naver_market", "naver_trend"] as const
+export const ARTICLE_SOURCES = ["eo_planet", "long_black"] as const
 export type ArticleSource = (typeof ARTICLE_SOURCES)[number]
 
 export const SOURCE_LABELS: Record<ArticleSource, string> = {
   eo_planet: "EO planet",
   long_black: "Long Black",
-  naver_market: "네이버 시장",
-  naver_trend: "네이버 트렌드",
 }
 
 export function isArticleSource(value: unknown): value is ArticleSource {
   return typeof value === "string" && (ARTICLE_SOURCES as readonly string[]).includes(value)
 }
 
-// /news 화면의 탭. 네이버 탭은 시장·트렌드 두 출처를 함께 보여 줍니다.
-export const NEWS_TABS: {
-  value: string
+// /news 화면에 그대로 띄우는 사이트. 사이트 디자인과 인기글을 원래 모습 그대로 보여 줍니다(저장하지 않음).
+export const NEWS_SITES: {
+  source: ArticleSource
   label: string
-  sources: ArticleSource[]
-  links: { label: string; url: string }[]
+  embedUrl: string
+  openUrl: string
+  hint: string
+  categoryPlaceholder: string
 }[] = [
   {
-    value: "eo_planet",
+    source: "eo_planet",
     label: "EO planet",
-    sources: ["eo_planet"],
-    links: [{ label: "EO planet 열기", url: "https://eopla.net" }],
+    embedUrl: "https://eopla.net/magazines",
+    openUrl: "https://eopla.net/magazines",
+    hint: "맨 위 '오늘 많이 본 아티클'이 인기글이에요.",
+    categoryPlaceholder: "분야 (예: 창업, 커리어)",
   },
   {
-    value: "long_black",
+    source: "long_black",
     label: "Long Black",
-    sources: ["long_black"],
-    links: [{ label: "Long Black 열기", url: "https://www.longblack.co" }],
-  },
-  {
-    value: "naver",
-    label: "네이버 시장·트렌드",
-    sources: ["naver_market", "naver_trend"],
-    links: [
-      { label: "네이버 증권 열기", url: "https://finance.naver.com" },
-      { label: "네이버 데이터랩 열기", url: "https://datalab.naver.com" },
-    ],
+    embedUrl: "https://www.longblack.co/",
+    openUrl: "https://www.longblack.co/",
+    hint: "오늘의 노트 아래로 내리면 '베스트 노트'가 있어요. 유료 글은 새 탭에서 로그인해 읽어요.",
+    categoryPlaceholder: "분류 (예: 브랜드, 라이프)",
   },
 ]

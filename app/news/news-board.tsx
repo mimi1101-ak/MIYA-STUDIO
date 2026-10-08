@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useId, useState, useTransition, type FormEvent } from "react"
+import { useId, useState, useSyncExternalStore, useTransition, type FormEvent } from "react"
 
 import { createInsight } from "@/app/insights/actions"
 import { InsightForm } from "@/components/insight-form"
@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { NEWS_TABS, SOURCE_LABELS, type ArticleSource } from "@/lib/sources"
+import { ARTICLE_SOURCES, NEWS_SITES, SOURCE_LABELS, type ArticleSource } from "@/lib/sources"
 import { isValidHttpUrl, LIMITS, URL_ERROR_MESSAGE } from "@/lib/validation"
 
 import { addArticle, deleteArticle } from "./actions"
@@ -25,88 +24,122 @@ export type ArticleView = {
   insightCount: number
 }
 
-type NewsTab = (typeof NEWS_TABS)[number]
+type NewsSite = (typeof NEWS_SITES)[number]
 
-const CATEGORY_PLACEHOLDER: Record<string, string> = {
-  eo_planet: "분야 (예: 창업, 커리어)",
-  long_black: "분류 (예: 브랜드, 라이프)",
-  naver: "분류 (예: 코스피, 환율, 검색 트렌드)",
-}
-
+// 위: EO planet·Long Black을 원래 사이트 모습 그대로 나란히(휴대폰은 위아래) 띄웁니다.
+// 아래: 읽은 글의 제목·링크를 저장하고 인사이트를 남깁니다.
 export function NewsBoard({ articles, canWrite }: { articles: ArticleView[]; canWrite: boolean }) {
   return (
-    <Tabs defaultValue={NEWS_TABS[0].value} className="gap-4">
-      <div className="no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 md:mx-0 md:px-0">
-        <TabsList className="min-w-full md:min-w-0">
-          {NEWS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="px-3">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <div className="flex flex-col gap-8">
+      <div className="grid gap-4 md:grid-cols-2">
+        {NEWS_SITES.map((site) => (
+          <SiteFrame key={site.source} site={site} />
+        ))}
       </div>
-      {NEWS_TABS.map((tab) => (
-        <TabsContent key={tab.value} value={tab.value}>
-          <SourcePanel
-            tab={tab}
-            articles={articles.filter((a) => tab.sources.includes(a.source))}
-            canWrite={canWrite}
-          />
-        </TabsContent>
-      ))}
-    </Tabs>
+
+      <section aria-labelledby="saved-articles" className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 id="saved-articles" className="text-base font-semibold">
+            저장한 글 · 인사이트
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            위에서 읽은 글의 링크를 저장해 두고, 글마다 인사이트를 남겨요.
+          </p>
+        </div>
+        <SavedArticles articles={articles} canWrite={canWrite} />
+      </section>
+    </div>
   )
 }
 
-function SourcePanel({
-  tab,
-  articles,
-  canWrite,
-}: {
-  tab: NewsTab
-  articles: ArticleView[]
-  canWrite: boolean
-}) {
+// 서버가 그린 화면에서는 false, 브라우저에서 화면이 준비된 뒤에는 true
+const noSubscribe = () => () => {}
+function useHydrated() {
+  return useSyncExternalStore(noSubscribe, () => true, () => false)
+}
+
+function SiteFrame({ site }: { site: NewsSite }) {
+  // 사이트 칸은 브라우저에서 화면이 준비된 뒤에 만듭니다. 그래야 "다 불러왔다"는 신호를 놓치지 않습니다.
+  const hydrated = useHydrated()
+  // 칸 안에서 다른 글로 이동했다가 처음 화면으로 돌아갈 때 씁니다.
+  const [reloadKey, setReloadKey] = useState(0)
+  const [loadedKey, setLoadedKey] = useState(-1)
+  const loaded = loadedKey === reloadKey
+
+  return (
+    <section
+      aria-label={site.label}
+      className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+    >
+      <div className="flex items-start justify-between gap-2 border-b px-3 py-2.5">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            {site.label}
+            {!loaded && (
+              <span role="status" className="text-xs font-normal text-muted-foreground">
+                불러오는 중…
+              </span>
+            )}
+          </h2>
+          <p className="text-xs text-muted-foreground">{site.hint}</p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button type="button" size="xs" variant="ghost" onClick={() => setReloadKey((k) => k + 1)}>
+            처음으로
+          </Button>
+          <a
+            href={site.openUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "outline", size: "xs" })}
+          >
+            새 탭 ↗
+          </a>
+        </div>
+      </div>
+      {/* 다른 사이트가 우리 화면 전체를 다른 주소로 바꾸지 못하게 sandbox로 권한을 줄여 둡니다. */}
+      {hydrated ? (
+        <iframe
+          key={reloadKey}
+          src={site.embedUrl}
+          title={`${site.label} 화면`}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+          onLoad={() => setLoadedKey(reloadKey)}
+          className="h-[70vh] min-h-[30rem] w-full bg-white"
+        />
+      ) : (
+        <div className="h-[70vh] min-h-[30rem] w-full bg-white" />
+      )}
+    </section>
+  )
+}
+
+function SavedArticles({ articles, canWrite }: { articles: ArticleView[]; canWrite: boolean }) {
   const [adding, setAdding] = useState(false)
 
   return (
     <div className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-      <div className="flex flex-wrap items-center gap-2">
-        {!adding && (
+      {!adding && (
+        <div>
           <Button type="button" size="sm" onClick={() => setAdding(true)}>
-            글 추가
+            글 저장하기
           </Button>
-        )}
-        {tab.links.map((link) => (
-          <a
-            key={link.url}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            {link.label} ↗
-          </a>
-        ))}
-      </div>
+        </div>
+      )}
 
       {adding && (
-        <ArticleForm
-          tab={tab}
-          canWrite={canWrite}
-          onDone={() => setAdding(false)}
-          onCancel={() => setAdding(false)}
-        />
+        <ArticleForm canWrite={canWrite} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
       )}
 
       {articles.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          아직 추가한 글이 없어요. 사이트에서 읽을 글을 찾아 링크를 붙여넣어 보세요.
+          아직 저장한 글이 없어요. 위에서 읽은 글의 링크를 복사해 저장해 보세요.
         </p>
       ) : (
         <ul className="flex flex-col divide-y">
           {articles.map((article) => (
-            <ArticleItem key={article.id} article={article} showSource={tab.sources.length > 1} />
+            <ArticleItem key={article.id} article={article} />
           ))}
         </ul>
       )}
@@ -114,7 +147,7 @@ function SourcePanel({
   )
 }
 
-function ArticleItem({ article, showSource }: { article: ArticleView; showSource: boolean }) {
+function ArticleItem({ article }: { article: ArticleView }) {
   const [writing, setWriting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
@@ -133,7 +166,7 @@ function ArticleItem({ article, showSource }: { article: ArticleView; showSource
   return (
     <li className="flex flex-col gap-2 py-3">
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        {showSource && <Badge variant="secondary">{SOURCE_LABELS[article.source]}</Badge>}
+        <Badge variant="secondary">{SOURCE_LABELS[article.source]}</Badge>
         {article.category && <Badge variant="outline">{article.category}</Badge>}
         <span>{article.dateLabel}</span>
       </div>
@@ -208,18 +241,16 @@ function ArticleItem({ article, showSource }: { article: ArticleView; showSource
 }
 
 function ArticleForm({
-  tab,
   canWrite,
   onDone,
   onCancel,
 }: {
-  tab: NewsTab
   canWrite: boolean
   onDone: () => void
   onCancel: () => void
 }) {
   const id = useId()
-  const [source, setSource] = useState<ArticleSource>(tab.sources[0])
+  const [source, setSource] = useState<ArticleSource>(ARTICLE_SOURCES[0])
   const [title, setTitle] = useState("")
   const [url, setUrl] = useState("")
   const [category, setCategory] = useState("")
@@ -257,23 +288,21 @@ function ArticleForm({
           서버 키(SUPABASE_SERVICE_ROLE_KEY)가 아직 설정되지 않아 글을 저장할 수 없어요.
         </p>
       )}
-      {tab.sources.length > 1 && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${id}-source`}>구분</Label>
-          <select
-            id={`${id}-source`}
-            value={source}
-            onChange={(e) => setSource(e.target.value as ArticleSource)}
-            className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:w-60"
-          >
-            {tab.sources.map((s) => (
-              <option key={s} value={s}>
-                {SOURCE_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-source`}>출처</Label>
+        <select
+          id={`${id}-source`}
+          value={source}
+          onChange={(e) => setSource(e.target.value as ArticleSource)}
+          className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:w-60"
+        >
+          {ARTICLE_SOURCES.map((s) => (
+            <option key={s} value={s}>
+              {SOURCE_LABELS[s]}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${id}-title`}>글 제목</Label>
         <Input
@@ -312,7 +341,7 @@ function ArticleForm({
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             maxLength={LIMITS.articleCategory}
-            placeholder={CATEGORY_PLACEHOLDER[tab.value]}
+            placeholder={NEWS_SITES.find((site) => site.source === source)?.categoryPlaceholder}
             className="bg-background"
           />
         </div>

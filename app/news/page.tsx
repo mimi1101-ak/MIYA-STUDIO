@@ -11,7 +11,7 @@ export default function NewsPage() {
   return (
     <PageShell
       title="뉴스·트렌드"
-      description="출처별로 읽을 글을 모아 두고, 읽은 글마다 인사이트를 남겨요."
+      description="EO planet과 Long Black의 인기글을 한 화면에서 보고, 읽은 글에 인사이트를 남겨요."
     >
       <Suspense fallback={<LoadingBlock lines={5} />}>
         <NewsContent />
