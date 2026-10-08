@@ -64,3 +64,24 @@ export async function deleteInsight(id: string): Promise<ActionResult> {
   refresh()
   return { ok: true }
 }
+
+// ── 저장한 글 아래에 쓰는 짧은 메모 ──────────────────────────
+// 메모도 인사이트로 저장합니다. 제목은 따로 받지 않고 첫 줄에서 만듭니다.
+
+function memoInput(rawText: string): InsightInput {
+  const content = cleanText(rawText)
+  const firstLine = content.split("\n")[0]
+  const title = firstLine.length > 60 ? `${firstLine.slice(0, 60)}…` : firstLine
+  return { title, content }
+}
+
+export async function addMemo(articleId: string, text: string): Promise<ActionResult> {
+  if (!isUuid(articleId)) return { ok: false, error: "잘못된 요청이에요." }
+  if (!cleanText(text)) return { ok: false, error: "메모를 입력해 주세요." }
+  return createInsight(articleId, memoInput(text))
+}
+
+export async function updateMemo(id: string, text: string): Promise<ActionResult> {
+  if (!cleanText(text)) return { ok: false, error: "메모를 입력해 주세요." }
+  return updateInsight(id, memoInput(text))
+}

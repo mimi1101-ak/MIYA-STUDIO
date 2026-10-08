@@ -1,23 +1,15 @@
 "use client"
 
-import Link from "next/link"
 import { useState, useTransition } from "react"
 
 import { InsightForm } from "@/components/insight-form"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import type { StandaloneInsight } from "@/lib/saved-articles"
 
 import { createInsight, deleteInsight, updateInsight } from "./actions"
 
-export type InsightView = {
-  id: string
-  title: string
-  content: string
-  dateLabel: string
-  article: { title: string; url: string; sourceLabel: string } | null
-}
-
-export function InsightsBoard({ insights }: { insights: InsightView[] }) {
+// 글 없이 따로 쓴 인사이트 목록 (글에 대한 메모는 저장한 글 카드에서 씁니다)
+export function InsightsBoard({ insights }: { insights: StandaloneInsight[] }) {
   const [adding, setAdding] = useState(false)
 
   return (
@@ -33,22 +25,15 @@ export function InsightsBoard({ insights }: { insights: InsightView[] }) {
           />
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={() => setAdding(true)}>
+        <div>
+          <Button type="button" variant="outline" onClick={() => setAdding(true)}>
             새 인사이트 쓰기
           </Button>
-          <span className="text-xs text-muted-foreground">
-            글에 대한 인사이트는{" "}
-            <Link href="/news" className="underline underline-offset-4">
-              뉴스
-            </Link>
-            에서 글을 골라 쓸 수 있어요.
-          </span>
         </div>
       )}
 
       {insights.length === 0 ? (
-        <p className="text-sm text-muted-foreground">아직 저장한 인사이트가 없어요.</p>
+        <p className="text-sm text-muted-foreground">아직 따로 쓴 인사이트가 없어요.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {insights.map((insight) => (
@@ -60,7 +45,7 @@ export function InsightsBoard({ insights }: { insights: InsightView[] }) {
   )
 }
 
-function InsightCard({ insight }: { insight: InsightView }) {
+function InsightCard({ insight }: { insight: StandaloneInsight }) {
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState("")
   const [deleting, startDelete] = useTransition()
@@ -76,14 +61,7 @@ function InsightCard({ insight }: { insight: InsightView }) {
 
   return (
     <li className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        {insight.article ? (
-          <Badge variant="secondary">{insight.article.sourceLabel}</Badge>
-        ) : (
-          <Badge variant="outline">직접 작성</Badge>
-        )}
-        <span>{insight.dateLabel}</span>
-      </div>
+      <span className="text-xs text-muted-foreground">{insight.dateLabel}</span>
 
       {editing ? (
         <InsightForm
@@ -101,16 +79,6 @@ function InsightCard({ insight }: { insight: InsightView }) {
               {insight.content}
             </p>
           </div>
-          {insight.article && (
-            <a
-              href={insight.article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs break-words text-muted-foreground underline-offset-4 hover:underline"
-            >
-              원문: {insight.article.title} ↗
-            </a>
-          )}
           <div className="flex justify-end gap-1">
             <Button type="button" size="xs" variant="ghost" onClick={() => setEditing(true)}>
               수정

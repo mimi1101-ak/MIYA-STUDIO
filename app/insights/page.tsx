@@ -2,47 +2,41 @@ import { Suspense } from "react"
 
 import { LoadingBlock, PageShell } from "@/components/page-shell"
 import { requireUser } from "@/lib/auth"
-import { formatDateKST } from "@/lib/date"
-import { isArticleSource, SOURCE_LABELS } from "@/lib/sources"
+import { loadSavedArticles, loadStandaloneInsights } from "@/lib/saved-articles"
 
-import { InsightsBoard, type InsightView } from "./insights-board"
+import { InsightsBoard } from "./insights-board"
+import { SavedBoard } from "./saved-board"
 
-export default function InsightsPage() {
+// 저장한 글: 글마다 AI 요약과 내 인사이트 메모. 아래에는 글 없이 따로 쓴 인사이트.
+export default function SavedPage() {
   return (
-    <PageShell title="인사이트" description="읽은 글에서 얻은 생각을 모아 봐요.">
-      <Suspense fallback={<LoadingBlock lines={5} />}>
-        <InsightsContent />
+    <PageShell title="저장한 글" description="AI 요약을 읽고, 내 생각을 메모로 남겨요.">
+      <Suspense fallback={<LoadingBlock lines={6} />}>
+        <SavedContent />
       </Suspense>
     </PageShell>
   )
 }
 
-async function InsightsContent() {
+async function SavedContent() {
   const { supabase } = await requireUser()
-  const { data, error } = await supabase
-    .from("insights")
-    .select("id, title, content, created_at, articles(title, url, source)")
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    return <p className="text-sm text-destructive">인사이트를 불러오지 못했어요. 새로고침해 주세요.</p>
+  const [saved, standalone] = await Promise.all([loadSavedArticles(supabase), loadStandaloneInsights(supabase)])
+  if (!saved || !standalone) {
+    return <p className="text-sm text-destructive">저장한 글을 불러오지 못했어요. 새로고침해 주세요.</p>
   }
 
-  const insights: InsightView[] = data.map((insight) => ({
-    id: insight.id,
-    title: insight.title,
-    content: insight.content,
-    dateLabel: formatDateKST(insight.created_at),
-    article: insight.articles
-      ? {
-          title: insight.articles.title,
-          url: insight.articles.url,
-          sourceLabel: isArticleSource(insight.articles.source)
-            ? SOURCE_LABELS[insight.articles.source]
-            : insight.articles.source,
-        }
-      : null,
-  }))
-
-  return <InsightsBoard insights={insights} />
+  return (
+    <div className="flex flex-col gap-10">
+      <SavedBoard articles={saved.articles} />
+      <section aria-labelledby="standalone-insights" className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 id="standalone-insights" className="text-base font-semibold">
+            글 없이 쓴 인사이트
+          </h2>
+          <p className="text-sm text-muted-foreground">특정 글과 상관없이 떠오른 생각을 모아 둬요.</p>
+        </div>
+        <InsightsBoard insights={standalone} />
+      </section>
+    </div>
+  )
 }

@@ -24,6 +24,8 @@ export type Database = {
           id: string
           published_at: string | null
           source: string
+          summarized_at: string | null
+          summary: string | null
           title: string
           url: string
         }
@@ -33,6 +35,8 @@ export type Database = {
           id?: string
           published_at?: string | null
           source: string
+          summarized_at?: string | null
+          summary?: string | null
           title: string
           url: string
         }
@@ -42,6 +46,8 @@ export type Database = {
           id?: string
           published_at?: string | null
           source?: string
+          summarized_at?: string | null
+          summary?: string | null
           title?: string
           url?: string
         }

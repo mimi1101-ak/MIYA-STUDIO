@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: "/calendar", label: "캘린더" },
   { href: "/goals", label: "목표" },
   { href: "/news", label: "뉴스" },
-  { href: "/insights", label: "인사이트" },
+  { href: "/insights", label: "저장한 글" },
   { href: "/projects", label: "프로젝트" },
   { href: "/profile", label: "프로필" },
 ]

@@ -1,34 +1,35 @@
 "use client"
 
+import { Check, Loader2, Sparkles } from "lucide-react"
 import Link from "next/link"
-import { useId, useState, useSyncExternalStore, useTransition, type FormEvent } from "react"
+import { useEffect, useId, useState, useSyncExternalStore, useTransition, type FormEvent } from "react"
 
-import { createInsight } from "@/app/insights/actions"
-import { InsightForm } from "@/components/insight-form"
+import { ArticleCard } from "@/components/article-card"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ARTICLE_SOURCES, NEWS_SITES, SOURCE_LABELS, type ArticleSource } from "@/lib/sources"
-import { isValidHttpUrl, LIMITS, URL_ERROR_MESSAGE } from "@/lib/validation"
+import type { SavedArticleView } from "@/lib/saved-articles"
+import { NEWS_SITES, SOURCE_LABELS, sourceFromUrl } from "@/lib/sources"
+import { LIMITS } from "@/lib/validation"
 
-import { addArticle, deleteArticle } from "./actions"
-
-export type ArticleView = {
-  id: string
-  source: ArticleSource
-  category: string
-  title: string
-  url: string
-  dateLabel: string
-  insightCount: number
-}
+import { addArticle, previewArticle } from "./actions"
 
 type NewsSite = (typeof NEWS_SITES)[number]
 
 // 위: EO planet·Long Black을 원래 사이트 모습 그대로 나란히(휴대폰은 위아래) 띄웁니다.
-// 아래: 읽은 글의 제목·링크를 저장하고 인사이트를 남깁니다.
-export function NewsBoard({ articles, canWrite }: { articles: ArticleView[]; canWrite: boolean }) {
+// 아래: 읽은 글의 링크를 저장하면 AI가 요약하고, 최근 저장한 글 몇 개를 보여 줍니다.
+export function NewsBoard({
+  recent,
+  total,
+  canWrite,
+}: {
+  recent: SavedArticleView[]
+  total: number
+  canWrite: boolean
+}) {
+  const [savingTitle, setSavingTitle] = useState<string | null>(null)
+
   return (
     <div className="flex flex-col gap-8">
       <div className="grid gap-4 md:grid-cols-2">
@@ -37,16 +38,46 @@ export function NewsBoard({ articles, canWrite }: { articles: ArticleView[]; can
         ))}
       </div>
 
-      <section aria-labelledby="saved-articles" className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 id="saved-articles" className="text-base font-semibold">
-            저장한 글 · 인사이트
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            위에서 읽은 글의 링크를 저장해 두고, 글마다 인사이트를 남겨요.
-          </p>
+      <section aria-labelledby="save-article" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <h2 id="save-article" className="text-base font-semibold">
+              글 저장하기
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              위에서 읽은 글의 링크를 붙여 넣으면 AI가 읽고 요약해 둬요.
+            </p>
+          </div>
+          <Link href="/insights" className="text-sm text-muted-foreground hover:text-foreground">
+            저장한 글 모두 보기 ({total}) →
+          </Link>
         </div>
-        <SavedArticles articles={articles} canWrite={canWrite} />
+
+        <ArticleSaver canWrite={canWrite} onSavingChange={setSavingTitle} />
+
+        <ul className="flex flex-col gap-3">
+          {savingTitle !== null && (
+            <li className="flex flex-col gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+              <span className="text-xs text-muted-foreground">방금 저장</span>
+              <span className="font-medium break-words">{savingTitle || "글을 불러오는 중"}</span>
+              <p
+                role="status"
+                className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground"
+              >
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                글을 읽고 요약하는 중이에요…
+              </p>
+            </li>
+          )}
+          {recent.map((article) => (
+            <ArticleCard key={article.id} article={article} compact />
+          ))}
+        </ul>
+        {recent.length === 0 && savingTitle === null && (
+          <p className="text-sm text-muted-foreground">
+            아직 저장한 글이 없어요. 위에서 읽은 글의 링크를 복사해 붙여 넣어 보세요.
+          </p>
+        )}
       </section>
     </div>
   )
@@ -115,260 +146,187 @@ function SiteFrame({ site }: { site: NewsSite }) {
   )
 }
 
-function SavedArticles({ articles, canWrite }: { articles: ArticleView[]; canWrite: boolean }) {
-  const [adding, setAdding] = useState(false)
+type Preview =
+  | { state: "idle" | "loading" }
+  | { state: "ok"; title: string }
+  | { state: "error"; text: string }
 
-  return (
-    <div className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-      {!adding && (
-        <div>
-          <Button type="button" size="sm" onClick={() => setAdding(true)}>
-            글 저장하기
-          </Button>
-        </div>
-      )}
-
-      {adding && (
-        <ArticleForm canWrite={canWrite} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
-      )}
-
-      {articles.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          아직 저장한 글이 없어요. 위에서 읽은 글의 링크를 복사해 저장해 보세요.
-        </p>
-      ) : (
-        <ul className="flex flex-col divide-y">
-          {articles.map((article) => (
-            <ArticleItem key={article.id} article={article} />
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-function ArticleItem({ article }: { article: ArticleView }) {
-  const [writing, setWriting] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState("")
-  const [deleting, startDelete] = useTransition()
-
-  function handleDelete() {
-    const note = article.insightCount > 0 ? "\n(이 글에 쓴 인사이트는 지워지지 않아요.)" : ""
-    if (!window.confirm(`"${article.title}" 글을 목록에서 삭제할까요?${note}`)) return
-    setError("")
-    startDelete(async () => {
-      const result = await deleteArticle(article.id)
-      if (!result.ok) setError(result.error)
-    })
-  }
-
-  return (
-    <li className="flex flex-col gap-2 py-3">
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <Badge variant="secondary">{SOURCE_LABELS[article.source]}</Badge>
-        {article.category && <Badge variant="outline">{article.category}</Badge>}
-        <span>{article.dateLabel}</span>
-      </div>
-      <a
-        href={article.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-medium break-words hover:underline"
-      >
-        {article.title} <span className="text-muted-foreground">↗</span>
-      </a>
-      <div className="flex flex-wrap items-center gap-1">
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          onClick={() => {
-            setWriting((v) => !v)
-            setSaved(false)
-          }}
-        >
-          인사이트 작성
-        </Button>
-        {article.insightCount > 0 && (
-          <Link
-            href="/insights"
-            className="px-2 text-xs text-muted-foreground underline-offset-4 hover:underline"
-          >
-            인사이트 {article.insightCount}개
-          </Link>
-        )}
-        <Button
-          type="button"
-          size="xs"
-          variant="ghost"
-          disabled={deleting}
-          onClick={handleDelete}
-          className="ml-auto text-muted-foreground hover:text-destructive"
-        >
-          {deleting ? "삭제 중…" : "삭제"}
-        </Button>
-      </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      {writing && (
-        <div className="rounded-lg bg-muted/50 p-3">
-          <p className="mb-2 text-xs text-muted-foreground">이 글에 대한 인사이트</p>
-          <InsightForm
-            submitLabel="인사이트 저장"
-            onSubmit={(input) => createInsight(article.id, input)}
-            onDone={() => {
-              setWriting(false)
-              setSaved(true)
-            }}
-            onCancel={() => setWriting(false)}
-          />
-        </div>
-      )}
-      {saved && (
-        <p className="text-xs text-muted-foreground">
-          인사이트를 저장했어요.{" "}
-          <Link href="/insights" className="underline underline-offset-4">
-            인사이트 목록 보기
-          </Link>
-        </p>
-      )}
-    </li>
-  )
-}
-
-function ArticleForm({
+// 링크만 붙여 넣으면 출처와 제목을 알아서 채우고, 저장하면 AI가 요약합니다.
+function ArticleSaver({
   canWrite,
-  onDone,
-  onCancel,
+  onSavingChange,
 }: {
   canWrite: boolean
-  onDone: () => void
-  onCancel: () => void
+  onSavingChange: (title: string | null) => void
 }) {
   const id = useId()
-  const [source, setSource] = useState<ArticleSource>(ARTICLE_SOURCES[0])
-  const [title, setTitle] = useState("")
   const [url, setUrl] = useState("")
+  const [preview, setPreview] = useState<Preview>({ state: "idle" })
+  const [showMore, setShowMore] = useState(false)
+  const [title, setTitle] = useState("")
   const [category, setCategory] = useState("")
   const [publishedDate, setPublishedDate] = useState("")
-  const [urlTouched, setUrlTouched] = useState(false)
-  const [error, setError] = useState("")
+  const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const urlInvalid = urlTouched && !isValidHttpUrl(url.trim())
+  const trimmed = url.trim()
+  const source = sourceFromUrl(trimmed)
+
+  // 링크를 붙여 넣고 잠깐 멈추면 제목을 미리 가져옵니다.
+  useEffect(() => {
+    if (!source) return
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      const result = await previewArticle(trimmed)
+      if (cancelled) return
+      setPreview(result.ok ? { state: "ok", title: result.title } : { state: "error", text: result.error })
+    }, 500)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [trimmed, source])
+
+  function handleUrlChange(value: string) {
+    setUrl(value)
+    setMessage(null)
+    setPreview(sourceFromUrl(value.trim()) ? { state: "loading" } : { state: "idle" })
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    setUrlTouched(true)
-    setError("")
-    if (!title.trim()) {
-      setError("글 제목을 입력해 주세요.")
+    setMessage(null)
+    if (!source) {
+      setMessage({ type: "error", text: "EO planet 또는 Long Black 글 링크를 붙여 넣어 주세요." })
       return
     }
-    if (!isValidHttpUrl(url.trim())) return
 
+    onSavingChange(title.trim() || (preview.state === "ok" ? preview.title : ""))
     startTransition(async () => {
-      const result = await addArticle({ source, title, url, category, publishedDate })
-      if (result.ok) onDone()
-      else setError(result.error)
+      const result = await addArticle({ url: trimmed, title, category, publishedDate })
+      onSavingChange(null)
+      if (result.ok) {
+        setUrl("")
+        setTitle("")
+        setCategory("")
+        setPublishedDate("")
+        setPreview({ state: "idle" })
+        setShowMore(false)
+        setMessage({ type: "ok", text: result.message ?? "저장했어요." })
+      } else {
+        setMessage({ type: "error", text: result.error })
+      }
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-lg bg-muted/50 p-3" noValidate>
-      <p className="text-xs text-muted-foreground">
-        제목·링크·날짜만 저장해요. 글 본문은 저장하지 않아요.
-      </p>
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+      noValidate
+    >
       {!canWrite && (
         <p role="alert" className="text-sm text-destructive">
           서버 키(SUPABASE_SERVICE_ROLE_KEY)가 아직 설정되지 않아 글을 저장할 수 없어요.
         </p>
       )}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${id}-source`}>출처</Label>
-        <select
-          id={`${id}-source`}
-          value={source}
-          onChange={(e) => setSource(e.target.value as ArticleSource)}
-          className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:w-60"
-        >
-          {ARTICLE_SOURCES.map((s) => (
-            <option key={s} value={s}>
-              {SOURCE_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${id}-title`}>글 제목</Label>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Badge variant={source ? "secondary" : "outline"} className="h-8 shrink-0 px-3">
+          {source ? SOURCE_LABELS[source] : "출처 자동"}
+        </Badge>
         <Input
-          id={`${id}-title`}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={LIMITS.articleTitle}
-          className="bg-background"
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${id}-url`}>링크</Label>
-        <Input
-          id={`${id}-url`}
           type="url"
           inputMode="url"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onBlur={() => url.trim() && setUrlTouched(true)}
-          placeholder="https://"
-          aria-invalid={urlInvalid || undefined}
-          aria-describedby={urlInvalid ? `${id}-url-error` : undefined}
-          className="bg-background"
+          onChange={(e) => handleUrlChange(e.target.value)}
+          placeholder="EO planet 또는 Long Black 글 링크를 붙여 넣어요"
+          aria-label="글 링크"
+          aria-describedby={`${id}-preview`}
         />
-        {urlInvalid && (
-          <p id={`${id}-url-error`} className="text-xs text-destructive">
-            {URL_ERROR_MESSAGE}
-          </p>
+      </div>
+
+      <p id={`${id}-preview`} className="min-h-5 text-xs text-muted-foreground" aria-live="polite">
+        {preview.state === "loading" && (
+          <span className="flex items-center gap-1">
+            <Loader2 className="size-3 animate-spin" aria-hidden />
+            제목을 가져오는 중…
+          </span>
+        )}
+        {preview.state === "ok" && (
+          <span className="flex items-center gap-1">
+            <Check className="size-3 shrink-0" aria-hidden />
+            제목을 가져왔어요: {preview.title}
+          </span>
+        )}
+        {preview.state === "error" && <span className="text-destructive">{preview.text}</span>}
+        {preview.state === "idle" && trimmed && !source && (
+          <span className="text-destructive">EO planet 또는 Long Black 글 링크만 저장할 수 있어요.</span>
+        )}
+      </p>
+
+      {showMore && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${id}-title`}>제목 직접 쓰기 (선택)</Label>
+            <Input
+              id={`${id}-title`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={LIMITS.articleTitle}
+              placeholder="비우면 글 제목을 써요"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${id}-category`}>분류 (선택)</Label>
+            <Input
+              id={`${id}-category`}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              maxLength={LIMITS.articleCategory}
+              placeholder={
+                NEWS_SITES.find((site) => site.source === source)?.categoryPlaceholder ?? "분류 (예: 브랜드)"
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${id}-date`}>글 날짜 (선택)</Label>
+            <Input
+              id={`${id}-date`}
+              type="date"
+              value={publishedDate}
+              onChange={(e) => setPublishedDate(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" disabled={pending || !canWrite}>
+          <Sparkles data-icon="inline-start" />
+          {pending ? "읽고 요약하는 중…" : "저장하고 요약하기"}
+        </Button>
+        <span className="text-xs text-muted-foreground">요약까지 10~20초 걸려요</span>
+        {!showMore && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="ml-auto text-muted-foreground"
+            onClick={() => setShowMore(true)}
+          >
+            분류·날짜 넣기
+          </Button>
         )}
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${id}-category`}>분류 (선택)</Label>
-          <Input
-            id={`${id}-category`}
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            maxLength={LIMITS.articleCategory}
-            placeholder={NEWS_SITES.find((site) => site.source === source)?.categoryPlaceholder}
-            className="bg-background"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${id}-date`}>글 날짜 (선택)</Label>
-          <Input
-            id={`${id}-date`}
-            type="date"
-            value={publishedDate}
-            onChange={(e) => setPublishedDate(e.target.value)}
-            className="bg-background"
-          />
-        </div>
-      </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
+
+      {message && (
+        <p
+          role={message.type === "error" ? "alert" : "status"}
+          className={message.type === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}
+        >
+          {message.text}
         </p>
       )}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending || !canWrite}>
-          {pending ? "저장 중…" : "글 저장"}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
-          취소
-        </Button>
-      </div>
     </form>
   )
 }

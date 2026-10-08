@@ -17,7 +17,7 @@
 
 ## 폴더 구조
 - `app/` — 화면(페이지)과 서버 API(route handler: 서버에서 실행되는 기능 주소)
-  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/news/`, `app/insights/`, `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
+  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/news/`, `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
   - `app/api/` — AI 메시지 생성, 글 수집 같은 서버 전용 기능
 - `components/` — 여러 화면에서 쓰는 화면 조각
 - `components/ui/` — shadcn/ui 기본 부품 (직접 고치지 않음)
@@ -45,7 +45,7 @@
 **이 프로젝트 전용 규칙**
 - 미결 사항(`docs/PRD.md` 9장)은 임의로 정하지 않습니다. 글 수집 방식, 메시지 내용 등은 해당 단계에서 사용자에게 먼저 묻습니다. 이미 정한 내용은 `DECISIONS.md`에 있습니다.
 - AI 동기부여 메시지는 하루에 한 번만 생성합니다. 같은 날에는 `daily_messages`에 저장된 메시지를 다시 보여 주고, AI를 또 호출하지 않습니다(비용 절약).
-- 외부 사이트(EO planet, Long Black)의 본문을 복사해 저장하지 않습니다. 사이트는 `/news`에 그대로 띄워 보여 주기만 합니다(네이버는 2026-10-08에 제외). 제목·링크·날짜만 저장합니다. 범위를 바꿔야 하면 사용자 확인이 필요합니다.
+- 외부 사이트(EO planet, Long Black)의 본문을 복사해 저장하지 않습니다. 사이트는 `/news`에 그대로 띄워 보여 주기만 합니다(네이버는 2026-10-08에 제외). 저장한 글은 AI 요약을 위해 본문을 잠깐 읽기만 하고, 저장하는 것은 제목·링크·날짜와 AI 요약뿐입니다. 제목·링크·날짜만 저장합니다. 범위를 바꿔야 하면 사용자 확인이 필요합니다.
 - 모든 화면은 휴대폰(가로 375px)과 PC 화면 모두에서 확인합니다. 디자인은 차분한 사무실 톤(밝은 배경, 무채색 위주, 과한 장식 없음)으로 맞춥니다.
 - 날짜 계산(오늘·이번 주·이번 달, 하루 한 번 메시지)은 한국 시간(Asia/Seoul) 기준으로 합니다. 시각 계산은 `lib/date.ts`의 `kstToMs`/`msToKst`를 씁니다.
 - 할 일의 시각 배치는 AI가 아니라 규칙 코드(`lib/schedule.ts`)가 합니다. AI는 할 일·날짜·예상 시간만 정합니다.

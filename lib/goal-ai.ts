@@ -10,7 +10,7 @@ import { isValidDate } from "@/lib/validation"
 // AI 목표 비서 (Claude API). 대화로 목표를 구체화하고, 월 → 주 → 일 단위 할 일 계획안을 만듭니다.
 // 시간 배치는 AI가 하지 않고 배치 규칙(lib/schedule.ts)이 합니다. AI는 날짜와 예상 시간만 정합니다.
 
-const DEFAULT_MODEL = "claude-opus-5-5"
+export const DEFAULT_MODEL = "claude-opus-5-5"
 const MAX_PLAN_TASKS = 150
 
 export type ChatMessage = { role: "user" | "assistant"; content: string }
@@ -136,7 +136,8 @@ export function aiErrorMessage(error: unknown): string {
   return "AI 비서가 답하지 못했어요. 잠시 후 다시 시도해 주세요."
 }
 
-function createClient() {
+// AI 기능들이 함께 쓰는 Claude 연결 (키는 서버에서만 읽음)
+export function createAiClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new MissingAiKeyError()
   // 계획안은 길어질 수 있어 넉넉히 기다립니다.
@@ -166,7 +167,7 @@ export async function askGoalAssistant(
   work: WorkHours,
   currentPlan: GoalPlan | null
 ): Promise<AssistantTurn> {
-  const client = createClient()
+  const client = createAiClient()
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m, i) =>
     i === history.length - 1 && m.role === "user"
       ? { role: "user", content: `${m.content}\n\n${contextBlock(today, work, currentPlan)}` }
@@ -286,7 +287,7 @@ export async function splitTaskWithAi(
   minutes: number,
   goalTitle: string | null
 ): Promise<{ title: string; minutes: number }[]> {
-  const client = createClient()
+  const client = createAiClient()
   const response = await client.beta.messages.create({
     model: process.env.CLAUDE_MODEL || DEFAULT_MODEL,
     max_tokens: 4096,

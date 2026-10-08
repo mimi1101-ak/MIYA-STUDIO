@@ -53,12 +53,13 @@
 
 **4) 뉴스·인사이트 정리** (2026-10-08 수정: 네이버 제외)
 - EO planet과 Long Black을 한 화면에 나란히(휴대폰은 위아래) 원래 사이트 모습 그대로 띄워, 각 사이트의 인기글(EO "오늘 많이 본 아티클", Long Black "베스트 노트")을 바로 봅니다. 저장하지 않고 보여 주기만 합니다.
-- 읽은 글은 제목·링크만 저장해 두고, 글마다 인사이트를 정리해 저장합니다.
+- 읽은 글은 링크만 붙여 넣으면 제목을 자동으로 가져오고, AI가 글을 읽어 요약(한 줄 요지 + 핵심 3~5줄)합니다. 본문은 요약할 때만 잠깐 읽고 저장하지 않으며, 요약만 저장합니다. Long Black은 유료라 공개된 앞부분만 요약합니다.
+- 요약 아래에 글마다 내 인사이트 메모를 여러 개 남기고, '저장한 글' 화면(`/insights`)에서 모아 보고 삭제합니다.
 - 네이버는 자동 수집과 다른 사이트 안에 띄우기를 모두 막고 있어 뺐습니다.
 - 완료 기준
   - [x] /news에서 EO planet과 Long Black이 한 화면에 같이 보이고, 각 사이트 안의 인기글을 볼 수 있다
-  - [ ] 글을 저장해 인사이트를 작성·수정·삭제할 수 있고, 어떤 글에 대한 인사이트인지 함께 저장된다 (서버 키 등록 후 확인)
-  - [ ] 저장한 인사이트를 모아 보는 목록이 있다
+  - [ ] 링크를 저장하면 AI 요약이 붙고, 요약 아래에 메모를 추가·수정·삭제할 수 있다
+  - [ ] '저장한 글' 화면에서 저장한 글을 출처별로 모아 보고 삭제할 수 있다
 
 **5) 마이 프로젝트**
 - 내가 만든 사이트들을 카드로 모아 두고 클릭 한 번으로 이동합니다.
@@ -96,7 +97,7 @@
 | 캘린더 | `/calendar` | 주간/월간 보기, 클릭 추가·수정·삭제, 끌어서 옮기기, 목표별 보기, 루틴 관리 | 본인 |
 | 목표 | `/goals`, `/goals/new`, `/goals/[id]` | 목표 목록·진척도, AI 비서 대화, 월→주→일 계획안, 승인 | 본인 |
 | 뉴스·트렌드 | `/news` | EO planet·Long Black 사이트를 나란히 띄워 인기글 보기, 저장한 글 목록, 인사이트 작성 버튼 | 본인 |
-| 인사이트 목록 | `/insights` | 저장한 인사이트 목록(원문 제목·출처·날짜), 수정·삭제 | 본인 |
+| 저장한 글 | `/insights` | 저장한 글 카드(AI 요약, 내 인사이트 메모, 글 삭제), 출처별 보기, 글 없이 쓴 인사이트 | 본인 |
 | 마이 프로젝트 | `/projects` | 프로젝트 카드(이름·설명·주소), 추가·수정·삭제 | 본인 |
 | 프로필 | `/profile` | 로그인 계정 정보, 표시 이름, 일할 수 있는 시간, 로그아웃 | 본인 |
 
@@ -112,7 +113,7 @@
 | routines | id, user_id, title, weekdays(요일 목록), start_time, duration_minutes, created_at, updated_at | 루틴(반복 습관) |
 | routine_checks | routine_id, user_id, check_date | 루틴을 어느 날 했는지 |
 | daily_messages | id(글자), user_id(글자), message_date(날짜), content(글자), created_at(날짜시간) | 하루 한 개의 AI 동기부여 메시지. user_id+message_date 중복 불가 |
-| articles | id(글자), source(글자: eo_planet/long_black. 예전 값 naver_market/naver_trend는 DB가 허용하지만 화면에서 쓰지 않음), category(글자), title(글자), url(글자), published_at(날짜시간), fetched_at(날짜시간) | 외부에서 가져온 글 목록. url 중복 불가 |
+| articles | id(글자), source(글자: eo_planet/long_black. 예전 값 naver_market/naver_trend는 DB가 허용하지만 화면에서 쓰지 않음), category(글자), title(글자), url(글자), published_at(날짜시간), fetched_at(날짜시간), summary(AI 요약: 첫 줄 요지, 다음 줄부터 핵심), summarized_at(날짜시간) | 외부에서 가져온 글 목록. url 중복 불가 |
 | insights | id(글자), user_id(글자), article_id(글자, 비어 있을 수 있음), title(글자), content(글자), created_at(날짜시간), updated_at(날짜시간) | 사용자가 정리한 인사이트 |
 | projects | id(글자), user_id(글자), name(글자), url(글자), description(글자), sort_order(정수), created_at(날짜시간) | 마이 프로젝트 링크 |
 

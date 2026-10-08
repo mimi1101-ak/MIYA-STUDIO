@@ -40,3 +40,33 @@ export const NEWS_SITES: {
     categoryPlaceholder: "분류 (예: 브랜드, 라이프)",
   },
 ]
+
+// 링크 주소로 출처를 알아냅니다. 두 사이트가 아니면 null (서버가 아무 주소나 읽지 않게 막는 용도로도 씀)
+const SOURCE_HOSTS: Record<string, ArticleSource> = {
+  "eopla.net": "eo_planet",
+  "www.eopla.net": "eo_planet",
+  "longblack.co": "long_black",
+  "www.longblack.co": "long_black",
+}
+
+export function sourceFromUrl(value: string): ArticleSource | null {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null
+    return SOURCE_HOSTS[url.hostname] ?? null
+  } catch {
+    return null
+  }
+}
+
+// Long Black은 유료라 로그인 없이 읽을 수 있는 앞부분만 요약합니다.
+export function isPartialSource(source: ArticleSource): boolean {
+  return source === "long_black"
+}
+
+// 저장된 요약: 첫 줄은 한 줄 요지, 다음 줄부터 핵심 내용
+export function parseSummary(summary: string | null): { gist: string; points: string[] } | null {
+  if (!summary) return null
+  const [gist, ...points] = summary.split("\n").map((line) => line.trim()).filter(Boolean)
+  return gist ? { gist, points } : null
+}
