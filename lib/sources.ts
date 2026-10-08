@@ -63,9 +63,11 @@ export function sourceFromUrl(value: string): ArticleSource | null {
   }
 }
 
-// Long Black은 유료라 로그인 없이 읽을 수 있는 앞부분만 요약합니다.
-export function isPartialSource(source: ArticleSource): boolean {
-  return source === "long_black"
+// 앱 서버가 글을 직접 읽어 올 수 있는 사이트인지.
+// Long Black은 사이트 보안(Vercel 봇 차단: 429 + x-vercel-mitigated: challenge)이 서버 요청을 막아 읽을 수 없습니다.
+// 이 보안을 우회하지 않고, 사용자가 글 내용을 붙여 넣으면 그걸로 요약합니다(DECISIONS.md 7장).
+export function canAutoRead(source: ArticleSource): boolean {
+  return source !== "long_black"
 }
 
 // 저장된 요약: 첫 줄은 한 줄 요지, 다음 줄부터 핵심 내용

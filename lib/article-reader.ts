@@ -1,10 +1,11 @@
 import "server-only"
 
-import { sourceFromUrl, type ArticleSource } from "@/lib/sources"
+import { canAutoRead, SOURCE_LABELS, sourceFromUrl, type ArticleSource } from "@/lib/sources"
 
 // 저장한 글의 링크를 열어 제목과 본문 글자를 꺼냅니다.
 // 본문은 요약할 때 잠깐만 쓰고 저장하지 않습니다(CLAUDE.md: 외부 본문 저장 금지).
-// EO planet·Long Black 주소만 엽니다. 두 사이트 모두 robots.txt에서 글 페이지 접근을 허용합니다.
+// EO planet 주소만 엽니다(robots.txt에서 글 페이지 접근 허용). Long Black은 사이트 보안이 서버 요청을 막아
+// 열지 않습니다(lib/sources.ts의 canAutoRead).
 
 const MAX_HTML = 3_000_000
 const MAX_TEXT = 30_000
@@ -27,6 +28,7 @@ const cache = new Map<string, { page: ArticlePage; at: number }>()
 export async function readArticle(url: string): Promise<ArticlePage> {
   const source = sourceFromUrl(url)
   if (!source) throw new ArticleReadError("EO planet·Long Black 글 링크만 읽을 수 있어요.")
+  if (!canAutoRead(source)) throw new ArticleReadError(blockedMessage(source))
 
   const cached = cache.get(url)
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.page
@@ -42,6 +44,10 @@ export async function readArticle(url: string): Promise<ArticlePage> {
   } catch (error) {
     console.error("[article-reader] 불러오기 실패:", error instanceof Error ? error.message : error)
     throw new ArticleReadError("글을 불러오지 못했어요. 링크를 확인하고 잠시 후 다시 시도해 주세요.")
+  }
+  // 사이트 보안이 "브라우저인지 확인"을 요구하면 서버는 통과할 수 없습니다(기다려도 안 풀림).
+  if (response.headers.get("x-vercel-mitigated") === "challenge" || response.headers.get("cf-mitigated")) {
+    throw new ArticleReadError(blockedMessage(source))
   }
   // 사이트가 "요청이 너무 많다"고 막은 경우: 잠시 뒤 다시 시도하면 됩니다.
   if (response.status === 429) {
@@ -65,6 +71,10 @@ export async function readArticle(url: string): Promise<ArticlePage> {
   if (cache.size >= 30) cache.delete(cache.keys().next().value!)
   cache.set(url, { page, at: Date.now() })
   return page
+}
+
+function blockedMessage(source: ArticleSource): string {
+  return `${SOURCE_LABELS[source]}은(는) 사이트 보안 설정 때문에 앱이 글을 대신 읽을 수 없어요. 제목을 직접 적고, 요약하려면 글 내용을 붙여 넣어 주세요.`
 }
 
 function metaContent(html: string, property: string): string | null {

@@ -17,8 +17,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import type { SavedArticleView } from "@/lib/saved-articles"
-import { NEWS_SITES, SOURCE_LABELS, sourceFromUrl } from "@/lib/sources"
+import { canAutoRead, NEWS_SITES, SOURCE_LABELS, sourceFromUrl } from "@/lib/sources"
 import { LIMITS } from "@/lib/validation"
 
 import { addArticle, previewArticle } from "./actions"
@@ -200,15 +201,19 @@ function ArticleSaver({
   const [title, setTitle] = useState("")
   const [category, setCategory] = useState("")
   const [publishedDate, setPublishedDate] = useState("")
+  const [pasted, setPasted] = useState("")
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
 
   const trimmed = url.trim()
   const source = sourceFromUrl(trimmed)
+  // Long Black처럼 앱이 직접 읽을 수 없는 글: 제목을 적고, 요약하려면 내용을 붙여 넣습니다.
+  const manual = source !== null && !canAutoRead(source)
+  const willSummarize = !manual || pasted.trim().length > 0
 
   // 링크를 붙여 넣고 잠깐 멈추면 제목을 미리 가져옵니다.
   useEffect(() => {
-    if (!source) return
+    if (!source || !canAutoRead(source)) return
     let cancelled = false
     const timer = setTimeout(async () => {
       const result = await previewArticle(trimmed)
@@ -224,7 +229,8 @@ function ArticleSaver({
   function handleUrlChange(value: string) {
     setUrl(value)
     setMessage(null)
-    setPreview(sourceFromUrl(value.trim()) ? { state: "loading" } : { state: "idle" })
+    const next = sourceFromUrl(value.trim())
+    setPreview(next && canAutoRead(next) ? { state: "loading" } : { state: "idle" })
   }
 
   function handleSubmit(event: FormEvent) {
@@ -234,16 +240,27 @@ function ArticleSaver({
       setMessage({ type: "error", text: "EO planet 또는 Long Black 글 링크를 붙여 넣어 주세요." })
       return
     }
+    if (manual && !title.trim()) {
+      setMessage({ type: "error", text: "글 제목을 적어 주세요." })
+      return
+    }
 
-    onSavingChange(title.trim() || (preview.state === "ok" ? preview.title : ""))
+    if (willSummarize) onSavingChange(title.trim() || (preview.state === "ok" ? preview.title : ""))
     startTransition(async () => {
-      const result = await addArticle({ url: trimmed, title, category, publishedDate })
+      const result = await addArticle({
+        url: trimmed,
+        title,
+        category,
+        publishedDate,
+        pastedText: manual ? pasted : "",
+      })
       onSavingChange(null)
       if (result.ok) {
         setUrl("")
         setTitle("")
         setCategory("")
         setPublishedDate("")
+        setPasted("")
         setPreview({ state: "idle" })
         setShowMore(false)
         setMessage({ type: "ok", text: result.message ?? "저장했어요." })
@@ -296,20 +313,54 @@ function ArticleSaver({
         {preview.state === "idle" && trimmed && !source && (
           <span className="text-destructive">EO planet 또는 Long Black 글 링크만 저장할 수 있어요.</span>
         )}
+        {manual && (
+          <span>
+            {SOURCE_LABELS[source]}은(는) 사이트 보안 때문에 앱이 글을 대신 읽을 수 없어요. 제목을 적고, 요약하려면 글
+            내용을 붙여 넣어 주세요.
+          </span>
+        )}
       </p>
 
-      {showMore && (
-        <div className="grid gap-3 md:grid-cols-3">
+      {manual && (
+        <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`${id}-title`}>제목 직접 쓰기 (선택)</Label>
+            <Label htmlFor={`${id}-manual-title`}>글 제목</Label>
             <Input
-              id={`${id}-title`}
+              id={`${id}-manual-title`}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={LIMITS.articleTitle}
-              placeholder="비우면 글 제목을 써요"
+              placeholder="글 제목을 적어요"
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${id}-pasted`}>글 내용 (선택 · 요약에만 쓰고 저장하지 않아요)</Label>
+            <Textarea
+              id={`${id}-pasted`}
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              rows={4}
+              maxLength={LIMITS.pastedText}
+              placeholder="글 화면에서 본문을 전체 선택(Ctrl+A)·복사(Ctrl+C)해 붙여 넣으면 AI가 요약해요"
+            />
+          </div>
+        </div>
+      )}
+
+      {showMore && (
+        <div className="grid gap-3 md:grid-cols-3">
+          {!manual && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${id}-title`}>제목 직접 쓰기 (선택)</Label>
+              <Input
+                id={`${id}-title`}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={LIMITS.articleTitle}
+                placeholder="비우면 글 제목을 써요"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${id}-category`}>분류 (선택)</Label>
             <Input
@@ -337,9 +388,9 @@ function ArticleSaver({
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={pending || !canWrite}>
           <Sparkles data-icon="inline-start" />
-          {pending ? "읽고 요약하는 중…" : "저장하고 요약하기"}
+          {pending ? (willSummarize ? "요약하는 중…" : "저장 중…") : willSummarize ? "저장하고 요약하기" : "링크 저장"}
         </Button>
-        <span className="text-xs text-muted-foreground">요약까지 10~20초 걸려요</span>
+        {willSummarize && <span className="text-xs text-muted-foreground">요약까지 10~20초 걸려요</span>}
         {!showMore && (
           <Button
             type="button"

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import type { MemoView, SavedArticleView } from "@/lib/saved-articles"
-import { isPartialSource, parseSummary, SOURCE_LABELS } from "@/lib/sources"
+import { canAutoRead, parseSummary, SOURCE_LABELS } from "@/lib/sources"
 import { cn } from "@/lib/utils"
 import { LIMITS, type ActionResult } from "@/lib/validation"
 
@@ -88,14 +88,26 @@ function SummaryBox({ article, compact }: { article: SavedArticleView; compact: 
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState("")
   const [open, setOpen] = useState(false)
+  // Long Black처럼 앱이 직접 읽을 수 없는 글은 내용을 붙여 넣어 요약합니다.
+  const [pasting, setPasting] = useState(false)
+  const [pasted, setPasted] = useState("")
   const summary = parseSummary(article.summary)
+  const autoRead = canAutoRead(article.source)
 
-  function summarize() {
+  function summarize(text = "") {
     setError("")
     startTransition(async () => {
-      const result = await summarizeArticle(article.id)
-      if (!result.ok) setError(result.error)
+      const result = await summarizeArticle(article.id, text)
+      if (!result.ok) return setError(result.error)
+      setPasting(false)
+      setPasted("")
     })
+  }
+
+  // 요약 버튼: 직접 읽을 수 있으면 바로 요약, 아니면 붙여 넣기 칸을 엽니다.
+  function startSummary() {
+    if (autoRead) summarize()
+    else setPasting(true)
   }
 
   return (
@@ -105,22 +117,56 @@ function SummaryBox({ article, compact }: { article: SavedArticleView; compact: 
           <Sparkles className="size-3.5" aria-hidden />
           AI 요약
         </span>
-        {isPartialSource(article.source) && (
-          <Badge variant="outline" className="text-muted-foreground">
-            유료 글 · 앞부분 기준
-          </Badge>
-        )}
-        {!compact && summary && !pending && (
-          <Button type="button" size="xs" variant="ghost" onClick={summarize} className="ml-auto text-muted-foreground">
+        {!compact && summary && !pending && !pasting && (
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            onClick={startSummary}
+            className="ml-auto text-muted-foreground"
+          >
             요약 다시 만들기
           </Button>
         )}
       </div>
 
-      {pending ? (
+      {pasting && !pending ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            summarize(pasted)
+          }}
+          className="flex flex-col gap-2"
+        >
+          <p className="text-xs text-muted-foreground">
+            {SOURCE_LABELS[article.source]}은(는) 사이트 보안 때문에 앱이 글을 대신 읽을 수 없어요. 글 화면에서
+            본문을 전체 선택(Ctrl+A)·복사(Ctrl+C)해 붙여 넣으면 요약해요. 붙여 넣은 내용은 저장하지 않아요.
+          </p>
+          <Textarea
+            value={pasted}
+            onChange={(e) => {
+              setPasted(e.target.value)
+              setError("")
+            }}
+            rows={5}
+            maxLength={LIMITS.pastedText}
+            placeholder="글 내용을 붙여 넣어요"
+            aria-label="요약할 글 내용"
+            autoFocus
+          />
+          <div className="flex gap-1">
+            <Button type="submit" size="xs" disabled={!pasted.trim()}>
+              요약하기
+            </Button>
+            <Button type="button" size="xs" variant="ghost" onClick={() => setPasting(false)}>
+              취소
+            </Button>
+          </div>
+        </form>
+      ) : pending ? (
         <p role="status" className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          글을 읽고 요약하는 중이에요… (10~20초)
+          {autoRead ? "글을 읽고 요약하는 중이에요… (10~20초)" : "요약하는 중이에요… (10초 안팎)"}
         </p>
       ) : summary ? (
         <>
@@ -152,8 +198,8 @@ function SummaryBox({ article, compact }: { article: SavedArticleView; compact: 
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-muted-foreground">아직 요약이 없어요.</p>
           {!compact && (
-            <Button type="button" size="xs" variant="outline" onClick={summarize}>
-              요약 만들기
+            <Button type="button" size="xs" variant="outline" onClick={startSummary}>
+              {autoRead ? "요약 만들기" : "내용 붙여 넣고 요약"}
             </Button>
           )}
         </div>
