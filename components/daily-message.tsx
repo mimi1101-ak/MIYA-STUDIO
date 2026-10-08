@@ -63,7 +63,7 @@ export function DailyMessage({
 
       {loading ? (
         <div className="flex flex-col gap-2" aria-busy="true">
-          <p className="text-sm text-muted-foreground">비서가 오늘의 메시지를 준비하고 있어요…</p>
+          <p className="text-sm text-muted-foreground">MOMO가 오늘의 메시지를 준비하고 있어요…</p>
           <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
           <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
         </div>

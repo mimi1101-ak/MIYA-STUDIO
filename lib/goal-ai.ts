@@ -7,7 +7,7 @@ import { formatClock, formatFullDayLabel, WEEKDAYS } from "@/lib/date"
 import type { WorkHours } from "@/lib/schedule"
 import { isValidDate } from "@/lib/validation"
 
-// AI 목표 비서 (Claude API). 대화로 목표를 구체화하고, 월 → 주 → 일 단위 할 일 계획안을 만듭니다.
+// MOMO와 목표 세우기 (Claude API). 대화로 목표를 구체화하고, 월 → 주 → 일 단위 할 일 계획안을 만듭니다.
 // 시간 배치는 AI가 하지 않고 배치 규칙(lib/schedule.ts)이 합니다. AI는 날짜와 예상 시간만 정합니다.
 
 export const DEFAULT_MODEL = "claude-opus-5-5"
@@ -29,7 +29,7 @@ export type GoalDraft = {
 
 export type AssistantTurn = { reply: string; goal: GoalDraft | null; plan: GoalPlan | null }
 
-const SYSTEM_PROMPT = `당신은 MIYA STUDIO의 AI 목표 비서입니다. 사용자는 이 앱을 혼자 쓰는 개인이고, "목표만 정하면 AI가 할 일을 쪼개서 일정에 넣어 주고, 나는 확인하고 실행만 한다"를 원합니다.
+const SYSTEM_PROMPT = `당신은 MIYA STUDIO의 마스코트 캐릭터 MOMO입니다. 사용자의 목표를 함께 세우는 역할을 합니다. 사용자는 이 앱을 혼자 쓰는 개인이고, "목표만 정하면 AI가 할 일을 쪼개서 일정에 넣어 주고, 나는 확인하고 실행만 한다"를 원합니다.
 
 진행 방식
 1. 사용자가 목표를 대충 말하면, 계획에 꼭 필요한 정보만 짧게 묻습니다. 한 번에 1~3개, 번호를 붙여 묻습니다.
@@ -133,7 +133,7 @@ export function aiErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIConnectionError) {
     return "AI 서비스에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요."
   }
-  return "AI 비서가 답하지 못했어요. 잠시 후 다시 시도해 주세요."
+  return "MOMO가 답하지 못했어요. 잠시 후 다시 시도해 주세요."
 }
 
 // AI 기능들이 함께 쓰는 Claude 연결 (키는 서버에서만 읽음)

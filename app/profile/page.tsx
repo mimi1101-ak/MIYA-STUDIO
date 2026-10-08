@@ -60,7 +60,7 @@ async function ProfileContent() {
       <Card>
         <CardHeader>
           <CardTitle>일할 수 있는 시간</CardTitle>
-          <CardDescription>AI 비서와 자동 배치가 할 일을 넣는 시간대예요. 일정·루틴이 있는 시간은 피해서 넣어요.</CardDescription>
+          <CardDescription>MOMO와 자동 배치가 할 일을 넣는 시간대예요. 일정·루틴이 있는 시간은 피해서 넣어요.</CardDescription>
         </CardHeader>
         <CardContent>
           <WorkHoursForm

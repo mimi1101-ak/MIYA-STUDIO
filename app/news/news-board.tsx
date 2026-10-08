@@ -24,15 +24,17 @@ import { LIMITS } from "@/lib/validation"
 
 import { addArticle, previewArticle } from "./actions"
 
-type NewsSite = (typeof NEWS_SITES)[number]
+export type NewsSite = (typeof NEWS_SITES)[number]
 
-// 위: EO planet·Long Black을 원래 사이트 모습 그대로 나란히(휴대폰은 위아래) 띄웁니다.
-// 아래: 읽은 글의 링크를 저장하면 AI가 요약하고, 최근 저장한 글 몇 개를 보여 줍니다.
+// 위: 사이트(EO planet 또는 Long Black)를 원래 모습 그대로 띄웁니다.
+// 아래: 읽은 글의 링크를 저장하면 MOMO가 보고서로 정리하고, 최근 저장한 글 몇 개를 보여 줍니다.
 export function NewsBoard({
+  site,
   recent,
   total,
   canWrite,
 }: {
+  site: NewsSite
   recent: SavedArticleView[]
   total: number
   canWrite: boolean
@@ -41,11 +43,7 @@ export function NewsBoard({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="grid gap-4 md:grid-cols-2">
-        {NEWS_SITES.map((site) => (
-          <SiteFrame key={site.source} site={site} />
-        ))}
-      </div>
+      <SiteFrame site={site} />
 
       <section aria-labelledby="save-article" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -54,7 +52,7 @@ export function NewsBoard({
               글 저장하기
             </h2>
             <p className="text-sm text-muted-foreground">
-              위에서 읽은 글의 링크를 붙여 넣으면 비서가 읽고 보고서로 정리해 둬요.
+              위에서 읽은 글의 링크를 붙여 넣으면 MOMO가 읽고 보고서로 정리해 둬요.
             </p>
           </div>
           <Link href="/insights" className="text-sm text-muted-foreground hover:text-foreground">
@@ -74,7 +72,7 @@ export function NewsBoard({
                 className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground"
               >
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                비서가 글을 읽고 보고서를 쓰는 중이에요…
+                MOMO가 글을 읽고 보고서를 쓰는 중이에요…
               </p>
             </li>
           )}
@@ -172,10 +170,10 @@ function SiteFrame({ site }: { site: NewsSite }) {
           loading="lazy"
           sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
           onLoad={() => setLoadedKey(reloadKey)}
-          className="h-[70vh] min-h-[30rem] w-full bg-white"
+          className="h-[75vh] min-h-[32rem] w-full bg-white"
         />
       ) : (
-        <div className="h-[70vh] min-h-[30rem] w-full bg-white" />
+        <div className="h-[75vh] min-h-[32rem] w-full bg-white" />
       )}
     </section>
   )
@@ -341,7 +339,7 @@ function ArticleSaver({
               onChange={(e) => setPasted(e.target.value)}
               rows={4}
               maxLength={LIMITS.pastedText}
-              placeholder="글 화면에서 본문을 전체 선택(Ctrl+A)·복사(Ctrl+C)해 붙여 넣으면 비서가 보고서로 정리해요"
+              placeholder="글 화면에서 본문을 전체 선택(Ctrl+A)·복사(Ctrl+C)해 붙여 넣으면 MOMO가 보고서로 정리해요"
             />
           </div>
         </div>

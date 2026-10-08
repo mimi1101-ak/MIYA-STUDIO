@@ -13,7 +13,7 @@ import { sendGoalMessage } from "./actions"
 
 const EXAMPLES = ["12월까지 전자책 5권 쓰기", "3달 안에 토익 900점", "이번 달에 포트폴리오 사이트 완성"]
 
-// AI 비서와 목표를 정하는 대화창
+// MOMO와 목표를 정하는 대화창
 export function GoalChat({ goalId, messages }: { goalId: string | null; messages: ChatMessage[] }) {
   const router = useRouter()
   const [text, setText] = useState("")
@@ -60,7 +60,7 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
     : messages
 
   return (
-    <section aria-label="AI 비서와 대화" className="flex flex-col gap-3">
+    <section aria-label="MOMO와 대화" className="flex flex-col gap-3">
       <ol className="flex flex-col gap-3" aria-live="polite">
         <Bubble role="assistant">
           {"어떤 목표를 이루고 싶으세요? 대충 말해 주셔도 돼요.\n필요한 것만 몇 가지 여쭤본 뒤, 월 → 주 → 일 단위로 할 일을 쪼갠 계획안을 보여 드릴게요."}
@@ -72,7 +72,7 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
         ))}
         {pending && (
           <li className="max-w-[85%] self-start rounded-xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">
-            비서가 생각하고 있어요… 계획안을 만들 때는 1~2분 걸릴 수 있어요.
+            MOMO가 생각하고 있어요… 계획안을 만들 때는 1~2분 걸릴 수 있어요.
           </li>
         )}
       </ol>
@@ -107,7 +107,7 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
           maxLength={LIMITS.chatMessage}
           rows={3}
           placeholder={messages.length ? "답하거나, 계획을 고쳐 달라고 말해 보세요." : "예: 12월까지 전자책 5권 쓰기"}
-          aria-label="AI 비서에게 보낼 메시지"
+          aria-label="MOMO에게 보낼 메시지"
           disabled={pending}
         />
         <div className="flex items-center justify-between gap-2">
@@ -129,7 +129,7 @@ function Bubble({ role, children }: { role: ChatMessage["role"]; children: strin
         role === "user" ? "self-end bg-primary text-primary-foreground" : "self-start bg-muted"
       )}
     >
-      <span className="sr-only">{role === "user" ? "나: " : "비서: "}</span>
+      <span className="sr-only">{role === "user" ? "나: " : "MOMO: "}</span>
       {children}
     </li>
   )

@@ -76,7 +76,7 @@ async function GoalContent({ params }: { params: Promise<{ id: string }> }) {
           <PlanView goalId={goal.id} plan={plan} approved={goal.status !== "draft"} />
         ) : (
           <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground ring-1 ring-foreground/10">
-            비서의 질문에 답하면 여기에 월 → 주 → 일 계획안이 나타나요.
+            MOMO의 질문에 답하면 여기에 월 → 주 → 일 계획안이 나타나요.
           </p>
         )}
       </div>

@@ -84,7 +84,7 @@ async function WeeklyGoals() {
             <p className="text-sm text-muted-foreground">아직 진행 중인 목표가 없어요.</p>
             <Link href="/goals/new" className={buttonVariants({ size: "sm", variant: "outline" })}>
               <Sparkles data-icon="inline-start" />
-              AI 비서와 목표 세우기
+              MOMO와 목표 세우기
             </Link>
           </div>
         ) : (

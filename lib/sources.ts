@@ -18,6 +18,9 @@ export function isArticleSource(value: unknown): value is ArticleSource {
 export const NEWS_SITES: {
   source: ArticleSource
   label: string
+  // 이 사이트를 보여 주는 우리 화면 주소 (트렌드 하위 메뉴)
+  path: string
+  menuDescription: string
   embedUrl: string
   openUrl: string
   hint: string
@@ -28,6 +31,8 @@ export const NEWS_SITES: {
   {
     source: "eo_planet",
     label: "EO planet",
+    path: "/news/eo",
+    menuDescription: "오늘 많이 본 아티클",
     embedUrl: "https://eopla.net/magazines",
     openUrl: "https://eopla.net/magazines",
     hint: "맨 위 '오늘 많이 본 아티클'이 인기글이에요.",
@@ -37,12 +42,20 @@ export const NEWS_SITES: {
   {
     source: "long_black",
     label: "Long Black",
+    path: "/news/longblack",
+    menuDescription: "오늘의 노트 · 베스트 노트",
     embedUrl: "https://www.longblack.co/",
     openUrl: "https://www.longblack.co/",
     hint: "오늘의 노트 아래로 내리면 '베스트 노트'가 있어요.",
     loginNote: "로그인·유료 글 읽기는 이 칸에서는 안 돼요",
     categoryPlaceholder: "분류 (예: 브랜드, 라이프)",
   },
+]
+
+// 위쪽 메뉴 '트렌드'의 하위 메뉴이자, 트렌드 화면 위 탭
+export const TREND_LINKS = [
+  ...NEWS_SITES.map((site) => ({ href: site.path, label: site.label, description: site.menuDescription })),
+  { href: "/insights", label: "저장한 글", description: "MOMO가 정리한 읽기 보고서" },
 ]
 
 // 링크 주소로 출처를 알아냅니다. 두 사이트가 아니면 null (서버가 아무 주소나 읽지 않게 막는 용도로도 씀)

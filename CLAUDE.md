@@ -17,7 +17,7 @@
 
 ## 폴더 구조
 - `app/` — 화면(페이지)과 서버 API(route handler: 서버에서 실행되는 기능 주소)
-  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/news/`, `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
+  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/news/`(트렌드: `eo/`, `longblack/`), `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
   - `app/api/` — AI 메시지 생성, 글 수집 같은 서버 전용 기능
 - `components/` — 여러 화면에서 쓰는 화면 조각
 - `components/ui/` — shadcn/ui 기본 부품 (직접 고치지 않음)

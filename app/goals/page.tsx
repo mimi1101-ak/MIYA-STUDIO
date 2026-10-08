@@ -11,11 +11,11 @@ import { formatDayLabel, formatDuration, weekStartKST } from "@/lib/date"
 
 export default function GoalsPage() {
   return (
-    <PageShell title="목표" description="목표를 정하면 AI 비서가 할 일을 쪼개서 일정에 넣어 드려요.">
+    <PageShell title="목표" description="목표를 정하면 MOMO가 할 일을 쪼개서 일정에 넣어 드려요.">
       <div>
         <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "px-5" })}>
           <Sparkles data-icon="inline-start" />
-          새 목표 · AI 비서와 대화
+          새 목표 · MOMO와 대화
         </Link>
       </div>
       <Suspense fallback={<LoadingBlock lines={5} />}>
@@ -41,7 +41,7 @@ async function GoalList() {
   const byId = new Map(progress.map((p) => [p.id, p]))
   const groups = [
     { title: "진행 중", items: goals.data.filter((g) => g.status === "active") },
-    { title: "AI 비서와 대화 중", items: goals.data.filter((g) => g.status === "draft") },
+    { title: "MOMO와 대화 중", items: goals.data.filter((g) => g.status === "draft") },
     { title: "완료", items: goals.data.filter((g) => g.status === "done" || g.status === "archived") },
   ]
 

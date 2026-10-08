@@ -28,7 +28,7 @@ function toChat(value: unknown): ChatMessage[] {
   )
 }
 
-// AI 비서에게 말하기. 목표가 아직 없으면(첫 메시지) 대화 중인 목표를 새로 만듭니다.
+// MOMO에게 말하기. 목표가 아직 없으면(첫 메시지) 대화 중인 목표를 새로 만듭니다.
 export async function sendGoalMessage(
   goalId: string | null,
   rawText: string
@@ -95,7 +95,7 @@ export async function approvePlan(goalId: string): Promise<ActionResult> {
   const { data: goal } = await supabase.from("goals").select("plan").eq("id", goalId).maybeSingle()
   const now = Date.now()
   const plan = normalizePlan(goal?.plan, msToKst(now).ymd)
-  if (!plan) return { ok: false, error: "승인할 계획안이 없어요. 먼저 AI 비서와 계획을 만들어 주세요." }
+  if (!plan) return { ok: false, error: "승인할 계획안이 없어요. 먼저 MOMO와 계획을 만들어 주세요." }
 
   const { error: clearError } = await supabase
     .from("tasks")

@@ -17,10 +17,10 @@ export function SavedBoard({ articles }: { articles: SavedArticleView[] }) {
     return (
       <p className="text-sm text-muted-foreground">
         아직 저장한 글이 없어요.{" "}
-        <Link href="/news" className="underline underline-offset-4">
-          뉴스
+        <Link href="/news/eo" className="underline underline-offset-4">
+          트렌드
         </Link>
-        에서 읽은 글의 링크를 붙여 넣으면 AI가 요약해 여기에 모아 둬요.
+        에서 읽은 글의 링크를 붙여 넣으면 MOMO가 보고서로 정리해 여기에 모아 둬요.
       </p>
     )
   }

@@ -204,11 +204,11 @@ function NowCard({
         <div className="flex flex-col items-start gap-3">
           <p className="text-lg font-medium">오늘 남은 할 일이 없어요.</p>
           <p className="text-sm text-muted-foreground">
-            목표를 정해 두면 AI 비서가 할 일을 쪼개서 빈 시간에 넣어 드려요.
+            목표를 정해 두면 MOMO가 할 일을 쪼개서 빈 시간에 넣어 드려요.
           </p>
           <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "px-5" })}>
             <Sparkles data-icon="inline-start" />
-            AI 비서와 목표 세우기
+            MOMO와 목표 세우기
           </Link>
         </div>
       )}

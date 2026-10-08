@@ -15,8 +15,11 @@ import { canAutoRead, SOURCE_LABELS } from "@/lib/sources"
 import { cn } from "@/lib/utils"
 import { LIMITS, type ActionResult } from "@/lib/validation"
 
-// 저장한 글 = 비서가 올린 "읽기 보고서" 한 장.
-// 접으면 표지(결론 + 핵심 소제목), 펼치면 결론·배경·핵심·숫자·비서 의견·내 검토 메모.
+// 보고서 작성자 이름 (표에 "작성자"로 표시)
+const REPORT_AUTHOR = "MOMO"
+
+// 저장한 글 = MOMO가 올린 "읽기 보고서" 한 장.
+// 접으면 표지(결론 + 핵심 소제목), 펼치면 결론·배경·핵심·숫자·MOMO 의견·내 검토 메모.
 export function ArticleCard({ article, compact = false }: { article: SavedArticleView; compact?: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const [pasting, setPasting] = useState(false)
@@ -63,7 +66,7 @@ export function ArticleCard({ article, compact = false }: { article: SavedArticl
     body = (
       <p role="status" className="flex items-center gap-1.5 bg-muted/60 px-3 py-3 text-sm text-muted-foreground">
         <Loader2 className="size-3.5 animate-spin" aria-hidden />
-        비서가 글을 읽고 보고서를 쓰는 중이에요… (20초 안팎)
+        MOMO가 글을 읽고 보고서를 쓰는 중이에요… (20초 안팎)
       </p>
     )
   } else if (pasting) {
@@ -99,7 +102,7 @@ export function ArticleCard({ article, compact = false }: { article: SavedArticl
   return (
     <li className="flex flex-col rounded-sm bg-card px-5 py-5 ring-1 ring-foreground/15 md:px-8 md:py-7">
       <div className="flex items-baseline justify-between gap-2 text-[11px] tracking-wide text-muted-foreground">
-        <span>MIYA STUDIO 비서 · 읽기 보고서</span>
+        <span>MIYA STUDIO</span>
         <span className="tabular-nums">
           {article.reportDate ?? article.dateLabel} · No. {String(article.docNumber).padStart(3, "0")}
         </span>
@@ -290,7 +293,7 @@ function FullReport({ article, report }: { article: SavedArticleView; report: Ar
   }
   if (report.advice.length > 0) {
     sections.push({
-      title: "비서 의견 · 이렇게 써먹어 보세요",
+      title: "MOMO 의견 · 이렇게 써먹어 보세요",
       content: (
         <ul className="flex flex-col gap-1.5 text-sm leading-7">
           {report.advice.map((line, i) => (
@@ -329,11 +332,10 @@ function FullReport({ article, report }: { article: SavedArticleView; report: Ar
           </a>
         </MetaCell>
         <MetaCell label="보고일">{article.reportDate ?? "-"}</MetaCell>
-        {report.field && (
-          <MetaCell label="분야" wide>
-            {report.field}
-          </MetaCell>
-        )}
+        <MetaCell label="작성자" wide={!report.field}>
+          {REPORT_AUTHOR}
+        </MetaCell>
+        {report.field && <MetaCell label="분야">{report.field}</MetaCell>}
         {report.keywords.length > 0 && (
           <MetaCell label="키워드" wide>
             {report.keywords.join(" · ")}
@@ -348,7 +350,7 @@ function FullReport({ article, report }: { article: SavedArticleView; report: Ar
       ))}
 
       <p className="mt-6 text-center text-[11px] text-muted-foreground">
-        ※ AI 비서가 원문을 읽고 정리한 보고서예요. 정확한 내용은 원문에서 확인하세요.
+        ※ MOMO(AI)가 원문을 읽고 정리한 보고서예요. 정확한 내용은 원문에서 확인하세요.
       </p>
     </div>
   )

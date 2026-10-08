@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 
 import { LoadingBlock, PageShell } from "@/components/page-shell"
+import { TrendTabs } from "@/components/trend-tabs"
 import { requireUser } from "@/lib/auth"
 import { loadSavedArticles, loadStandaloneInsights } from "@/lib/saved-articles"
 
@@ -10,7 +11,8 @@ import { SavedBoard } from "./saved-board"
 // 저장한 글: 글마다 AI 요약과 내 인사이트 메모. 아래에는 글 없이 따로 쓴 인사이트.
 export default function SavedPage() {
   return (
-    <PageShell title="저장한 글" description="비서가 올린 읽기 보고서를 보고, 내 생각을 검토 메모로 남겨요.">
+    <PageShell title="트렌드" description="MOMO가 올린 읽기 보고서를 보고, 내 생각을 검토 메모로 남겨요.">
+      <TrendTabs active="/insights" />
       <Suspense fallback={<LoadingBlock lines={6} />}>
         <SavedContent />
       </Suspense>
