@@ -54,7 +54,7 @@ export function NewsBoard({
               글 저장하기
             </h2>
             <p className="text-sm text-muted-foreground">
-              위에서 읽은 글의 링크를 붙여 넣으면 AI가 읽고 요약해 둬요.
+              위에서 읽은 글의 링크를 붙여 넣으면 비서가 읽고 보고서로 정리해 둬요.
             </p>
           </div>
           <Link href="/insights" className="text-sm text-muted-foreground hover:text-foreground">
@@ -74,7 +74,7 @@ export function NewsBoard({
                 className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground"
               >
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                글을 읽고 요약하는 중이에요…
+                비서가 글을 읽고 보고서를 쓰는 중이에요…
               </p>
             </li>
           )}
@@ -334,14 +334,14 @@ function ArticleSaver({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`${id}-pasted`}>글 내용 (선택 · 요약에만 쓰고 저장하지 않아요)</Label>
+            <Label htmlFor={`${id}-pasted`}>글 내용 (선택 · 보고서에만 쓰고 저장하지 않아요)</Label>
             <Textarea
               id={`${id}-pasted`}
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
               rows={4}
               maxLength={LIMITS.pastedText}
-              placeholder="글 화면에서 본문을 전체 선택(Ctrl+A)·복사(Ctrl+C)해 붙여 넣으면 AI가 요약해요"
+              placeholder="글 화면에서 본문을 전체 선택(Ctrl+A)·복사(Ctrl+C)해 붙여 넣으면 비서가 보고서로 정리해요"
             />
           </div>
         </div>
@@ -388,9 +388,9 @@ function ArticleSaver({
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={pending || !canWrite}>
           <Sparkles data-icon="inline-start" />
-          {pending ? (willSummarize ? "요약하는 중…" : "저장 중…") : willSummarize ? "저장하고 요약하기" : "링크 저장"}
+          {pending ? (willSummarize ? "보고서 쓰는 중…" : "저장 중…") : willSummarize ? "저장하고 보고서 받기" : "링크 저장"}
         </Button>
-        {willSummarize && <span className="text-xs text-muted-foreground">요약까지 10~20초 걸려요</span>}
+        {willSummarize && <span className="text-xs text-muted-foreground">보고서까지 20초 안팎 걸려요</span>}
         {!showMore && (
           <Button
             type="button"

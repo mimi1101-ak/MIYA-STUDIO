@@ -14,6 +14,9 @@ export type SavedArticleView = {
   url: string
   dateLabel: string
   summary: string | null
+  // 보고서 번호(저장한 순서)와 보고일(요약한 날)
+  docNumber: number
+  reportDate: string | null
   memos: MemoView[]
 }
 
@@ -27,7 +30,9 @@ export async function loadSavedArticles(
   const [articles, insights] = await Promise.all([
     supabase
       .from("articles")
-      .select("id, source, category, title, url, published_at, fetched_at, summary", { count: "exact" })
+      .select("id, source, category, title, url, published_at, fetched_at, summary, summarized_at", {
+        count: "exact",
+      })
       .order("fetched_at", { ascending: false })
       .limit(limit),
     supabase
@@ -44,9 +49,10 @@ export async function loadSavedArticles(
     memos.set(row.article_id, [...(memos.get(row.article_id) ?? []), { id: row.id, content: row.content }])
   }
 
+  const total = articles.count ?? articles.data.length
   return {
-    total: articles.count ?? articles.data.length,
-    articles: articles.data.flatMap((a) =>
+    total,
+    articles: articles.data.flatMap((a, index) =>
       isArticleSource(a.source)
         ? [
             {
@@ -57,6 +63,9 @@ export async function loadSavedArticles(
               url: a.url,
               dateLabel: a.published_at ? formatDateKST(a.published_at) : `${formatDateKST(a.fetched_at)} 저장`,
               summary: a.summary,
+              // 최신순으로 불러오므로, 가장 먼저 저장한 글이 1번입니다.
+              docNumber: total - index,
+              reportDate: a.summarized_at ? formatDateKST(a.summarized_at) : null,
               memos: memos.get(a.id) ?? [],
             },
           ]

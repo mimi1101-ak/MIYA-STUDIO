@@ -69,10 +69,3 @@ export function sourceFromUrl(value: string): ArticleSource | null {
 export function canAutoRead(source: ArticleSource): boolean {
   return source !== "long_black"
 }
-
-// 저장된 요약: 첫 줄은 한 줄 요지, 다음 줄부터 핵심 내용
-export function parseSummary(summary: string | null): { gist: string; points: string[] } | null {
-  if (!summary) return null
-  const [gist, ...points] = summary.split("\n").map((line) => line.trim()).filter(Boolean)
-  return gist ? { gist, points } : null
-}

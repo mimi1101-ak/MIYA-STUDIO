@@ -111,9 +111,9 @@ export async function addArticle(input: ArticleInput): Promise<ActionResult> {
 
   // 저장은 끝났으니, 요약이 실패해도 글은 남기고 안내만 합니다.
   const text = pasted || page?.text || ""
-  let message = "저장하고 요약했어요."
+  let message = "저장했어요. 비서가 보고서를 올렸어요."
   if (!text) {
-    message = "링크를 저장했어요. 요약하려면 저장한 글 카드에서 글 내용을 붙여 넣어 주세요."
+    message = "링크를 저장했어요. 보고서를 받으려면 저장한 글 카드에서 글 내용을 붙여 넣어 주세요."
   } else {
     try {
       const summary = await summarizeText(title, text)
@@ -122,7 +122,7 @@ export async function addArticle(input: ArticleInput): Promise<ActionResult> {
         .update({ summary, summarized_at: new Date().toISOString() })
         .eq("id", data.id)
     } catch (error) {
-      message = `저장했어요. 다만 요약하지 못했어요: ${aiErrorMessage(error)}`
+      message = `저장했어요. 다만 보고서를 만들지 못했어요: ${aiErrorMessage(error)}`
     }
   }
 
