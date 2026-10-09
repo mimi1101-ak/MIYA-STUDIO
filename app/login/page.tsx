@@ -49,7 +49,7 @@ export default function LoginPage() {
             <span>
               MIYA STUDIO <span className="text-foreground/25">/</span> 오늘
             </span>
-            <span className="hidden sm:inline">W · 이번 주</span>
+            <span className="hidden sm:inline">이번 주</span>
           </div>
           <div className="flex items-center gap-3 border border-dashed border-foreground/15 px-3 py-2 text-xs text-foreground/85">
             <MomoAvatar size={29} />

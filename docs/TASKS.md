@@ -102,6 +102,13 @@
 - [x] 나머지 화면(캘린더 색, 트렌드, 저장한 글, 프로젝트, 프로필)은 배치 그대로 색·글꼴·버튼만
 - 확인: `/`를 PC와 휴대폰(375px)에서 열고 MOMO 메시지가 한 글자씩 도착하는 동안 아래 할 일이 바로 보이는지, `/goals/new`에서 MOMO에게 말을 걸어 새 답이 한 글자씩 오는지, `/login`·`/calendar`가 검은 우주 화면인지
 
+## 21단계. 첫 배포 (2026-10-09)
+- [x] GitHub(main) → Vercel 프로젝트 `miya-studio` 연결. 주소: https://miya-studio-chi.vercel.app (main에 올리면 자동 배포)
+- [x] Vercel 환경 변수 4개(Supabase URL·공개 키·서비스 키, Anthropic 키). `CLAUDE_MODEL`은 코드 기본값과 같아 넣지 않음
+- [x] Function Region: 서울(icn1) — 응답 머리글 `x-vercel-id`가 `icn1::icn1::…`
+- [x] Supabase URL Configuration: Site URL을 배포 주소로, Redirect URLs에 배포 주소 `/auth/callback` 추가(localhost 유지)
+- 확인함: 배포 주소에서 카카오 로그인 → 오늘 화면, MOMO 메시지 한 글자씩 도착
+
 ## 현재 상태 · 다음 세션에서 이어서 할 일 (2026-10-08 저장)
 
 **된 것**
@@ -115,7 +122,7 @@
 2. `SUPABASE_SERVICE_ROLE_KEY`를 `.env.local`에 넣기 → `/news`에서 글 추가·삭제 확인 (지금은 비어 있음)
 3. Supabase 정리: Authentication에서 **Email 로그인 끄기**, 본인 로그인 후 **새 가입 막기**(나만 쓰는 앱으로)
 4. (선택) 구글 로그인 키 등록
-5. 배포: GitHub에 올리기 → Vercel 가져오기 → 환경 변수 등록(`.env.local`의 값들) → Function Region을 Seoul(icn1)로 → Supabase URL Configuration에 배포 주소와 `/auth/callback` 추가
+5. ~~배포~~ → 2026-10-09 완료 (21단계)
 6. (나중) PRD "있으면 좋음": 할 일 순서 바꾸기, 인사이트 검색
 
 **주의**
