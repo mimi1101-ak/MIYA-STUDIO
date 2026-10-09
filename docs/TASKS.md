@@ -94,6 +94,14 @@
 - [x] 메뉴: '뉴스' → '트렌드' 하위 메뉴(EO planet · Long Black · 저장한 글), 사이트별 화면 `/news/eo`·`/news/longblack`, 보고서 머리글 'MIYA STUDIO'·작성자 MOMO
 - 확인: `/news`에 EO planet 글 링크를 붙여 넣고 "저장하고 요약하기" → `/insights`에서 요약 아래에 메모를 남기고, 글을 삭제해 보기
 
+## 20단계. 디자인 개편: Deep Space Mono (2026-10-09)
+- [x] 기반: 우주 색 토큰·글꼴 4종(`app/globals.css`, `app/layout.tsx`), 별 배경(`components/space-background.tsx`), MOMO 원본 이미지(`public/momo.png`)·신호 줄(`components/momo-avatar.tsx`), 관측 창·이름표·픽셀 막대(`components/space-ui.tsx`)
+- [x] 오늘 화면·위쪽 메뉴: 가운데 MIYA STUDIO·시계·MOMO와 대화, 보낸 사람 칩 + 문장마다 줄바꿈 + 한 글자씩 도착, NOW 카드, 타임라인, 이번 주 목표 큰 숫자·24칸 막대
+- [x] 목표·MOMO 대화: MOMO 프로필, 생각 중 표시, 새 답 한 글자씩, 계획안·궤도 빈 화면
+- [x] 로그인 화면
+- [x] 나머지 화면(캘린더 색, 트렌드, 저장한 글, 프로젝트, 프로필)은 배치 그대로 색·글꼴·버튼만
+- 확인: `/`를 PC와 휴대폰(375px)에서 열고 MOMO 메시지가 한 글자씩 도착하는 동안 아래 할 일이 바로 보이는지, `/goals/new`에서 MOMO에게 말을 걸어 새 답이 한 글자씩 오는지, `/login`·`/calendar`가 검은 우주 화면인지
+
 ## 현재 상태 · 다음 세션에서 이어서 할 일 (2026-10-08 저장)
 
 **된 것**

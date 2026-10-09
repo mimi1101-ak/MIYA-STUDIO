@@ -15,11 +15,17 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* 보고서 제목용 명조체: 기기에 깔린 글꼴만 씀(Windows 바탕, Mac 애플명조) */
-  --font-serif: "Batang", "바탕", "AppleMyungjo", "Nanum Myeongjo", "Noto Serif KR", ui-serif, Georgia, serif;
+  /* 글꼴: app/layout.tsx에서 불러온 웹폰트 (Deep Space Mono 디자인 규칙) */
+  /* 화면 정보 — IBM Plex Sans KR */
+  --font-sans: var(--font-plex-kr), ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  /* 시각·라벨·MOMO 신호 줄 — IBM Plex Mono (한글은 Plex Sans KR로) */
+  --font-mono: var(--font-plex-mono), var(--font-plex-kr), ui-monospace, Consolas, monospace;
+  /* MOMO의 목소리 — 오늘의 메시지, 큰 제목, 보고서 제목 */
+  --font-serif: var(--font-hahmlet), "Batang", "AppleMyungjo", serif;
+  /* 큰 숫자·로고 (20px 이상에서만) */
+  --font-pixel: var(--font-doto), var(--font-plex-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
+  --color-dim: var(--dim);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -58,77 +64,46 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Deep Space Mono: 검정 우주 위의 흰 별빛. 흑백만 쓰고, 예외는 오류 빨강과 카카오 노랑뿐.
+   화면은 이 한 벌만 씁니다(<html class="dark">로 shadcn 부품도 어두운 모양을 씀). */
 :root {
-  /* 차분한 사무실 톤: 아주 옅은 회색 배경 + 흰 카드 */
-  --background: oklch(0.975 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  color-scheme: dark;
+  --background: #040405; /* 우주 */
+  --foreground: #f3f3f1; /* 별빛 */
+  --card: rgb(14 14 16 / 0.78); /* 패널: 뒤의 별이 아주 살짝 비침 */
+  --card-foreground: #f3f3f1;
+  --popover: #121215;
+  --popover-foreground: #f3f3f1;
+  --primary: #f3f3f1;
+  --primary-foreground: #040405;
+  --secondary: #1b1b1f;
+  --secondary-foreground: #f3f3f1;
+  --muted: #1b1b1f;
+  --muted-foreground: #a6a6ab; /* 성운: 보조 글자 */
+  --dim: #808086; /* 먼지: 설명·시각 (배경 대비 5:1) */
+  --accent: #1b1b1f;
+  --accent-foreground: #f3f3f1;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: rgb(255 255 255 / 0.12); /* 궤도선 */
+  --input: rgb(255 255 255 / 0.16);
+  --ring: #a6a6ab;
+  --chart-1: #f3f3f1;
+  --chart-2: #a6a6ab;
+  --chart-3: #808086;
+  --chart-4: #4a4a50;
+  --chart-5: #2a2a2e;
+  --radius: 0.3rem;
+  --sidebar: #0e0e10;
+  --sidebar-foreground: #f3f3f1;
+  --sidebar-primary: #f3f3f1;
+  --sidebar-primary-foreground: #040405;
+  --sidebar-accent: #1b1b1f;
+  --sidebar-accent-foreground: #f3f3f1;
+  --sidebar-border: rgb(255 255 255 / 0.12);
+  --sidebar-ring: #a6a6ab;
 }
 
-/* Next.js 기본 404 화면 스타일(어두운 모드에서 검은 배경·흰 글자)이 섞여 들어와도 화면 색이 바뀌지 않게 */
+/* Next.js 기본 404 화면 스타일이 섞여 들어와도 화면 색이 바뀌지 않게 */
 html body {
   background-color: var(--background);
   color: var(--foreground);
@@ -147,21 +122,191 @@ html body {
     word-break: keep-all;
   }
 }
-/* 캘린더(FullCalendar): 차분한 무채색에 맞춤 */
+
+/* ── 픽셀 모서리 ─────────────────────────────────────────
+   버튼은 모서리를 3px 계단으로 깎습니다. components/ui는 직접 고치지 않으므로
+   버튼 부품(buttonVariants)이 붙이는 group/button 표시를 여기서 덧씌웁니다. */
+.pixel-corners,
+.group\/button {
+  border-radius: 0;
+  clip-path: polygon(
+    0 3px, 3px 3px, 3px 0, calc(100% - 3px) 0, calc(100% - 3px) 3px, 100% 3px,
+    100% calc(100% - 3px), calc(100% - 3px) calc(100% - 3px), calc(100% - 3px) 100%,
+    3px 100%, 3px calc(100% - 3px), 0 calc(100% - 3px)
+  );
+}
+/* 깎은 모서리 밖으로 그리는 초점 테두리는 잘려 보이지 않으므로 안쪽에 그립니다. */
+.group\/button:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px var(--foreground),
+    inset 0 0 0 4px var(--background);
+}
+/* 작은 표시(배지)는 알약 대신 각진 모양 */
+.group\/badge {
+  border-radius: 2px;
+}
+
+/* ── 우주 배경 (components/space-background.tsx) ───────────── */
+.star {
+  position: absolute;
+  border-radius: 9999px;
+  background: #fff;
+}
+.twinkle {
+  animation: twinkle 5s ease-in-out infinite;
+}
+@keyframes twinkle {
+  50% {
+    opacity: 0.06;
+  }
+}
+/* 화면 전체의 아주 옅은 가로줄(스캔라인) */
+.scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.022) 0,
+    rgb(255 255 255 / 0.022) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* ── MOMO 신호 (점·글자 도착·커서·칩 등장) ───────────────── */
+.signal-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 0 10px rgb(255 255 255 / 0.8);
+}
+.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+/* 한 글자씩 흐림 → 선명. 자리는 처음부터 잡혀 있어 줄이 흔들리지 않습니다. */
+.char {
+  opacity: 0;
+}
+.char.on {
+  opacity: 1;
+  animation: char-in 0.7s ease-out;
+}
+@keyframes char-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.caret {
+  position: absolute;
+  bottom: 0.18em;
+  left: 4px;
+  width: 0.42em;
+  height: 0.92em;
+  background: var(--foreground);
+  animation: blink 1s steps(1) infinite;
+}
+.caret-inline {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--foreground);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+.arrive {
+  animation: arrive 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.thinking-dots span {
+  width: 4px;
+  height: 4px;
+  background: var(--foreground);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.orbit {
+  animation: orbit 16s linear infinite;
+}
+.orbit-slow {
+  animation: orbit 34s linear infinite;
+}
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 기기에서 '동작 줄이기'를 켜면 움직임을 모두 멈춥니다. */
+@media (prefers-reduced-motion: reduce) {
+  .twinkle,
+  .pulse,
+  .char.on,
+  .caret,
+  .caret-inline,
+  .arrive,
+  .thinking-dots span,
+  .orbit,
+  .orbit-slow {
+    animation: none;
+  }
+}
+
+/* 캘린더(FullCalendar): 우주 팔레트에 맞춤 */
 .fc {
   --fc-border-color: var(--border);
-  --fc-page-bg-color: var(--card);
-  --fc-neutral-bg-color: oklch(0.985 0 0);
-  --fc-non-business-color: oklch(0.96 0 0 / 70%);
-  --fc-today-bg-color: oklch(0.97 0.005 250 / 60%);
-  --fc-now-indicator-color: var(--foreground);
-  --fc-highlight-color: oklch(0.9 0 0 / 50%);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgb(255 255 255 / 0.04);
+  --fc-neutral-text-color: var(--muted-foreground);
+  --fc-non-business-color: rgb(255 255 255 / 0.025);
+  --fc-today-bg-color: rgb(255 255 255 / 0.06);
+  --fc-now-indicator-color: #fff;
+  --fc-highlight-color: rgb(255 255 255 / 0.1);
+  --fc-list-event-hover-bg-color: rgb(255 255 255 / 0.06);
   font-size: 0.8rem;
 }
 .fc .fc-col-header-cell-cushion,
 .fc .fc-daygrid-day-number {
   color: var(--foreground);
   text-decoration: none;
+}
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-timegrid-axis-cushion {
+  font-family: var(--font-mono);
+  color: var(--dim);
 }
 .fc .fc-event {
   cursor: pointer;

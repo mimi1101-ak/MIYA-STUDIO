@@ -3,6 +3,8 @@
 import { Sparkles } from "lucide-react"
 import { useState, useTransition } from "react"
 
+import { MomoAvatar, MomoLine } from "@/components/momo-avatar"
+import { CornerFrame, SectionLabel } from "@/components/space-ui"
 import { Button } from "@/components/ui/button"
 import { formatDayLabel, formatDuration } from "@/lib/date"
 import type { GoalPlan } from "@/lib/goal-ai"
@@ -36,45 +38,47 @@ export function PlanView({ goalId, plan, approved }: { goalId: string; plan: Goa
   }
 
   return (
-    <section aria-label="계획안" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="flex items-center gap-1.5 text-base font-semibold">
-          <Sparkles className="size-4" aria-hidden />
-          AI 계획안
-        </h2>
-        <p className="text-sm text-muted-foreground">
+    <CornerFrame aria-label="계획안" className="flex flex-col gap-6 p-4 md:p-6">
+      <div className="flex flex-col gap-2">
+        <SectionLabel code="PLAN">
+          <span className="inline-flex items-center gap-1.5">
+            <Sparkles className="size-3.5" aria-hidden />
+            AI 계획안
+          </span>
+        </SectionLabel>
+        <p className="font-mono text-xs text-muted-foreground">
           할 일 {tasks.length}개 · 모두 {formatDuration(total)}
         </p>
-        {plan.summary && <p className="text-sm leading-relaxed">{plan.summary}</p>}
+        {plan.summary && <p className="font-serif text-lg leading-relaxed md:text-xl">{plan.summary}</p>}
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-6">
         {plan.months.map((month, mi) => (
-          <div key={mi} className="flex flex-col gap-2 rounded-lg bg-card p-3 ring-1 ring-foreground/10">
-            <div>
-              <h3 className="text-sm font-semibold">{month.label}</h3>
-              {month.focus && <p className="text-xs text-muted-foreground">{month.focus}</p>}
+          <div key={mi} className="flex flex-col gap-1">
+            <div className="mb-1 flex flex-col gap-0.5">
+              <h3 className="font-serif text-lg">{month.label}</h3>
+              {month.focus && <p className="text-xs text-dim">{month.focus}</p>}
             </div>
             {month.weeks.map((week, wi) => {
               const minutes = week.tasks.reduce((sum, t) => sum + t.minutes, 0)
               return (
-                <details key={wi} open={mi === 0 && wi === 0} className="group rounded-md bg-muted/50 px-3 py-2">
+                <details key={wi} open={mi === 0 && wi === 0} className="group border-t border-foreground/[0.08] py-3">
                   <summary className="cursor-pointer text-sm">
                     <span className="font-medium">{week.label}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="font-mono text-xs text-dim">
                       {" "}
                       · {week.tasks.length}개 · {formatDuration(minutes)}
                     </span>
-                    {week.focus && <span className="block text-xs text-muted-foreground">{week.focus}</span>}
+                    {week.focus && <span className="block pt-0.5 text-xs text-dim">{week.focus}</span>}
                   </summary>
-                  <ul className="mt-2 flex flex-col gap-1">
+                  <ul className="mt-3 flex flex-col gap-2">
                     {week.tasks.map((task, ti) => (
-                      <li key={ti} className="flex gap-2 text-sm">
-                        <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">
+                      <li key={ti} className="flex gap-3 text-sm leading-relaxed">
+                        <span className="w-24 shrink-0 font-mono text-xs leading-6 text-dim tabular-nums">
                           {formatDayLabel(task.date)}
                         </span>
                         <span className="min-w-0 flex-1 break-words">{task.title}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{formatDuration(task.minutes)}</span>
+                        <span className="shrink-0 font-mono text-xs leading-6 text-dim">{formatDuration(task.minutes)}</span>
                       </li>
                     ))}
                   </ul>
@@ -85,23 +89,52 @@ export function PlanView({ goalId, plan, approved }: { goalId: string; plan: Goa
         ))}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Button type="button" size="lg" onClick={approve} disabled={pending}>
+      <div className="flex flex-col gap-2.5">
+        <Button type="button" size="lg" className="h-11" onClick={approve} disabled={pending}>
           {pending ? "일정에 넣는 중…" : approved ? "이 계획으로 일정 다시 넣기" : "승인하고 일정에 넣기"}
         </Button>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs leading-relaxed text-dim">
           날짜는 AI가 정하고, 시각은 일정·루틴을 피해 일할 수 있는 시간 안의 빈 자리에 자동으로 넣어요.
           {!approved && " 고치고 싶으면 승인 전에 대화로 말해 주세요."}
         </p>
-        {message && (
-          <p
-            role={message.type === "error" ? "alert" : "status"}
-            className={message.type === "error" ? "text-sm text-destructive" : "text-sm"}
-          >
-            {message.text}
-          </p>
-        )}
+        {message && <MomoLine tone={message.type === "error" ? "error" : "normal"}>{message.text}</MomoLine>}
       </div>
-    </section>
+    </CornerFrame>
+  )
+}
+
+// 계획안이 아직 없을 때: 월·주·일 궤도 가운데 MOMO
+export function PlanPlaceholder() {
+  return (
+    <CornerFrame aria-label="계획안" className="flex flex-col gap-6 p-4 md:p-6">
+      <SectionLabel code="PLAN">계획안</SectionLabel>
+      <div className="flex flex-col items-center gap-6 pt-6 pb-2">
+        <div aria-hidden className="relative grid size-[230px] place-items-center">
+          <span className="absolute size-[224px] rounded-full border border-dashed border-foreground/15" />
+          <span className="absolute size-[160px] rounded-full border border-dashed border-foreground/20" />
+          <span className="absolute size-[96px] rounded-full border border-foreground/30" />
+          <span className="orbit-slow absolute size-[224px]">
+            <span className="absolute top-[-3px] left-1/2 -ml-[3px] size-1.5 bg-muted-foreground" />
+          </span>
+          <span className="orbit absolute size-[160px]">
+            <span className="absolute top-[-3px] left-1/2 -ml-[3px] size-1.5 bg-foreground shadow-[0_0_8px_rgb(255_255_255/0.8)]" />
+          </span>
+          <span className="absolute top-[-2px] left-1/2 -translate-x-1/2 -translate-y-full font-mono text-[10px] tracking-[0.2em] text-dim">
+            MONTH
+          </span>
+          <span className="absolute top-[21px] left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.2em] text-dim">
+            WEEK
+          </span>
+          <span className="absolute top-[53px] left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground">
+            DAY
+          </span>
+          <MomoAvatar size={58} className="relative" />
+        </div>
+        <p className="text-center text-sm leading-relaxed text-muted-foreground">
+          MOMO의 질문에 답하면 여기에
+          <br />월 → 주 → 일 계획안이 나타나요.
+        </p>
+      </div>
+    </CornerFrame>
   )
 }

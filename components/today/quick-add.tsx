@@ -60,13 +60,14 @@ export function QuickAdd({ today, now }: { today: string; now: number }) {
           placeholder="예: 금요일 3시 치과 · 보고서 초안 2시간"
           aria-label="빠른 입력"
           aria-describedby="quick-add-preview"
+          className="h-11"
         />
-        <Button type="submit" disabled={!plan || pending}>
+        <Button type="submit" className="h-11 px-5" disabled={!plan || pending}>
           {pending ? "추가 중…" : "추가"}
         </Button>
       </div>
 
-      <div id="quick-add-preview" className="flex min-h-7 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div id="quick-add-preview" className="flex min-h-7 flex-wrap items-center gap-2 text-xs text-dim">
         {plan ? (
           <>
             <div role="group" aria-label="종류 바꾸기" className="flex gap-1">
@@ -77,8 +78,8 @@ export function QuickAdd({ today, now }: { today: string; now: number }) {
                   aria-pressed={plan.kind === k}
                   onClick={() => setOverride(k)}
                   className={cn(
-                    "h-6 rounded-md px-2 ring-1 ring-foreground/10",
-                    plan.kind === k ? "bg-primary text-primary-foreground" : "bg-card"
+                    "h-7 rounded-sm px-2.5 ring-1 ring-foreground/15",
+                    plan.kind === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {KIND_LABELS[k]}

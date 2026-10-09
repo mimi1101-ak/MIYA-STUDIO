@@ -1,18 +1,19 @@
 "use client"
 
-import { Sparkles } from "lucide-react"
+import { Check, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { Fragment, useOptimistic, useState, useTransition } from "react"
 
+import { MomoAvatar, MomoLine } from "@/components/momo-avatar"
 import { ItemEditor } from "@/components/schedule/item-editor"
+import { SectionLabel } from "@/components/space-ui"
 import { QuickAdd } from "@/components/today/quick-add"
 import { useNowMinutes } from "@/components/today/use-now"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { KIND_LABELS, type AgendaItem, type GoalOption, type UnscheduledTask } from "@/lib/agenda-types"
-import { formatClock, formatDayLabel, formatDuration } from "@/lib/date"
+import { formatClock, formatDuration } from "@/lib/date"
 import {
   deleteTask,
   keepTask,
@@ -36,7 +37,7 @@ type Props = {
   oftenCarried: CarriedTask[]
 }
 
-// "오늘" 화면의 움직이는 부분: 지금 할 일, 타임라인, 빠른 입력, 시간 미정 할 일
+// "오늘" 화면의 움직이는 부분: MOMO 신호 줄, 지금 할 일, 타임라인, 빠른 입력, 시간 미정 할 일
 export function TodayBoard({ today, initialNow, items, goals, unscheduled, oftenCarried }: Props) {
   const now = useNowMinutes(initialNow, today)
   const [list, applyDone] = useOptimistic(items, (state, change: { key: string; done: boolean }) =>
@@ -75,6 +76,8 @@ export function TodayBoard({ today, initialNow, items, goals, unscheduled, often
 
   return (
     <div className="flex flex-col gap-4">
+      <MomoLine tone={notice?.type === "error" ? "error" : "normal"}>{notice ? notice.text : summarize(list)}</MomoLine>
+
       <CarriedPrompt tasks={oftenCarried} />
 
       <NowCard
@@ -85,15 +88,6 @@ export function TodayBoard({ today, initialNow, items, goals, unscheduled, often
         onDone={(item) => toggle(item, true)}
         onLater={later}
       />
-
-      {notice && (
-        <p
-          role={notice.type === "error" ? "alert" : "status"}
-          className={cn("text-sm", notice.type === "error" ? "text-destructive" : "text-muted-foreground")}
-        >
-          {notice.text}
-        </p>
-      )}
 
       <Timeline
         today={today}
@@ -107,6 +101,17 @@ export function TodayBoard({ today, initialNow, items, goals, unscheduled, often
       {unscheduled.length > 0 && <UnscheduledCard tasks={unscheduled} />}
     </div>
   )
+}
+
+// 알릴 일이 없을 때 MOMO가 하는 말: 오늘 할 일·일정 개수
+function summarize(items: AgendaItem[]): string {
+  if (items.length === 0) return "오늘은 잡힌 일이 없어요. 아래 빠른 입력으로 할 일을 넣어 보세요."
+  const count = (kind: AgendaItem["kind"]) => items.filter((i) => i.kind === kind).length
+  const tasks = count("task")
+  const parts = [`할 일 ${tasks}개`, `일정 ${count("event")}개`]
+  if (count("routine") > 0) parts.push(`루틴 ${count("routine")}개`)
+  const allDone = tasks > 0 && items.every((i) => i.kind !== "task" || i.done)
+  return `오늘은 ${parts.join(", ")}가 있어요.${allDone ? " 할 일은 모두 끝냈어요." : ""}`
 }
 
 // ── 지금 할 일 ───────────────────────────────────────────
@@ -124,7 +129,7 @@ function pickNow(items: AgendaItem[], now: number, skipped: string[]): NowPick |
 }
 
 function timeRange(item: AgendaItem) {
-  return `${formatClock(item.start)}~${formatClock(item.end)}`
+  return `${formatClock(item.start)}–${formatClock(item.end)}`
 }
 
 function NowCard({
@@ -156,43 +161,49 @@ function NowCard({
   return (
     <section
       aria-label="지금 할 일"
-      className="flex flex-col gap-4 rounded-xl bg-card p-5 ring-1 ring-foreground/15 md:p-6"
+      className="flex flex-col gap-5 rounded-xl bg-foreground/[0.04] p-5 ring-1 ring-foreground/15 md:p-7"
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="shrink-0 text-xs font-medium text-muted-foreground">지금 할 일</p>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <SectionLabel code="NOW">지금 할 일</SectionLabel>
         {eventNote && <p className="min-w-0 truncate text-xs text-muted-foreground">{eventNote}</p>}
       </div>
 
       {pick ? (
         <>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusBadge pick={pick} />
+              {pick.item.goalTitle && (
+                <Badge variant="outline">
+                  <span aria-hidden className="size-1.5 rotate-45 bg-foreground" />
+                  {pick.item.goalTitle}
+                </Badge>
+              )}
               <KindBadges item={pick.item} />
             </div>
-            <p className="text-2xl leading-snug font-semibold tracking-tight break-words md:text-3xl">
+            <p className="text-2xl leading-snug font-medium tracking-tight break-words md:text-[2rem] md:leading-[1.3]">
               {pick.item.title}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="font-mono text-[13px] text-muted-foreground">
               {timeRange(pick.item)} · {formatDuration(pick.item.end - pick.item.start)}
-              {pick.item.goalTitle && <> · 목표: {pick.item.goalTitle}</>}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
               type="button"
               size="lg"
-              className="px-5"
+              className="h-11 px-6"
               disabled={pendingKeys.includes(pick.item.key)}
               onClick={() => onDone(pick.item)}
             >
+              <Check data-icon="inline-start" />
               완료
             </Button>
             <Button
               type="button"
               size="lg"
               variant="outline"
-              className="px-5"
+              className="h-11 px-6"
               disabled={pendingKeys.includes(pick.item.key)}
               onClick={() => onLater(pick.item)}
             >
@@ -202,11 +213,11 @@ function NowCard({
         </>
       ) : (
         <div className="flex flex-col items-start gap-3">
-          <p className="text-lg font-medium">오늘 남은 할 일이 없어요.</p>
+          <p className="font-serif text-2xl md:text-[1.75rem]">오늘 남은 할 일이 없어요.</p>
           <p className="text-sm text-muted-foreground">
             목표를 정해 두면 MOMO가 할 일을 쪼개서 빈 시간에 넣어 드려요.
           </p>
-          <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "px-5" })}>
+          <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "h-11 px-5" })}>
             <Sparkles data-icon="inline-start" />
             MOMO와 목표 세우기
           </Link>
@@ -243,12 +254,6 @@ export function KindBadges({ item }: { item: AgendaItem }) {
 
 // ── 오늘 타임라인 ─────────────────────────────────────────
 
-const KIND_BAR: Record<AgendaItem["kind"], string> = {
-  task: "border-foreground/70",
-  event: "border-foreground/25 bg-muted/60",
-  routine: "border-dashed border-foreground/40",
-}
-
 function Timeline({
   today,
   items,
@@ -268,122 +273,140 @@ function Timeline({
   const checkable = items.filter((i) => i.kind !== "event")
   const doneCount = checkable.filter((i) => i.done).length
   const lineIndex = items.findIndex((i) => i.start > now)
+  // 지금 선: 시각 + 숨 쉬는 신호 점 + 흐려지는 선
   const nowLine = (
-    <li aria-hidden className="flex items-center gap-2 py-1">
-      <span className="w-20 shrink-0 text-xs font-semibold tabular-nums">지금 {formatClock(now)}</span>
-      <span className="h-px flex-1 bg-foreground/80" />
+    <li aria-hidden className="flex items-center gap-3 py-1.5">
+      <span className="w-[3.25rem] shrink-0 pl-1 font-mono text-[11px] font-medium tracking-[0.04em] sm:w-[6.5rem] sm:pl-3 sm:text-xs">
+        <span className="hidden sm:inline">NOW </span>
+        {formatClock(now)}
+      </span>
+      <span className="signal-dot pulse" />
+      <span className="h-px flex-1 bg-linear-to-r from-foreground/90 to-foreground/5" />
     </li>
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>오늘 타임라인</CardTitle>
-        <CardDescription>{formatDayLabel(today)}</CardDescription>
-        <CardAction>
-          <span className="text-sm tabular-nums">
-            완료 <strong>{doneCount}</strong> / {checkable.length}
-          </span>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">오늘은 잡힌 할 일·일정·루틴이 없어요.</p>
-        ) : (
-          <ol className="flex flex-col gap-1.5">
-            {items.map((item, index) => {
-              const editing = editingKey === item.key
-              const overdue = item.kind === "task" && !item.done && item.end <= now
-              return (
-                <Fragment key={item.key}>
-                  {index === lineIndex && nowLine}
-                  <li
-                    className={cn(
-                      "flex flex-col gap-2 rounded-md border-l-2 py-1.5 pr-1 pl-2.5",
-                      KIND_BAR[item.kind],
-                      item.end <= now && !editing && "opacity-70"
-                    )}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span className="w-20 shrink-0 pt-0.5 text-xs text-muted-foreground tabular-nums">
-                        {timeRange(item)}
+    <section aria-label="오늘 타임라인" className="flex flex-col gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <SectionLabel code="TIMELINE">타임라인</SectionLabel>
+        <p className="font-mono text-xs text-muted-foreground tabular-nums">
+          완료 {doneCount} / {checkable.length}
+        </p>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">오늘은 잡힌 할 일·일정·루틴이 없어요.</p>
+      ) : (
+        <ol className="flex flex-col gap-0.5">
+          {items.map((item, index) => {
+            const editing = editingKey === item.key
+            const current = !item.done && item.start <= now && now < item.end
+            const overdue = item.kind === "task" && !item.done && item.end <= now
+            const meta = [
+              KIND_LABELS[item.kind],
+              item.goalTitle,
+              item.source === "ai" ? "AI" : null,
+              formatDuration(item.end - item.start),
+              item.carryCount > 0 ? `${item.carryCount}번 미룸` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+            return (
+              <Fragment key={item.key}>
+                {index === lineIndex && nowLine}
+                <li
+                  className={cn(
+                    "flex flex-col gap-2 rounded-md py-2.5 pr-1 transition-opacity",
+                    current && "bg-foreground/[0.055]",
+                    item.end <= now && !current && !editing && "opacity-50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="w-[3.25rem] shrink-0 pl-1 font-mono text-xs leading-5 text-muted-foreground tabular-nums sm:w-[6.5rem] sm:pl-3">
+                      {formatClock(item.start)}
+                      <span className="block text-[11px] leading-4 text-foreground/30 sm:inline sm:text-xs sm:leading-5">
+                        <span className="hidden sm:inline">–</span>
+                        {formatClock(item.end)}
                       </span>
-                      {item.kind === "event" ? (
-                        <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-foreground/40" />
-                      ) : (
-                        <Checkbox
-                          className="mt-0.5"
-                          checked={item.done}
-                          disabled={pendingKeys.includes(item.key)}
-                          onCheckedChange={(checked) => onToggle(item, checked)}
-                          aria-label={`${item.title} 완료 표시`}
-                        />
-                      )}
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span
-                          className={cn(
-                            "text-sm break-words",
-                            item.done && "text-muted-foreground line-through"
-                          )}
-                        >
-                          {item.title}
-                        </span>
-                        <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                          <KindBadges item={item} />
-                          {item.goalTitle && <span>목표: {item.goalTitle}</span>}
-                          {item.carryCount > 0 && <span>· {item.carryCount}번 미룸</span>}
-                          {overdue && <span className="text-foreground">· 밀림</span>}
-                        </span>
-                      </div>
-                      {item.kind === "routine" ? (
-                        <Link
-                          href="/calendar"
-                          className={buttonVariants({ size: "xs", variant: "ghost", className: "text-muted-foreground" })}
-                        >
-                          수정
-                        </Link>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant="ghost"
-                          className="text-muted-foreground"
-                          onClick={() => setEditingKey(editing ? null : item.key)}
-                        >
-                          {editing ? "닫기" : "수정"}
-                        </Button>
-                      )}
-                    </div>
-                    {editing && (
-                      <ItemEditor
-                        value={{
-                          kind: item.kind,
-                          id: item.id,
-                          title: item.title,
-                          minutes: item.end - item.start,
-                          goalId: item.goalId,
-                          date: item.ymd,
-                          start: item.start,
-                          weekdays: [],
-                        }}
-                        goals={goals}
-                        onClose={() => setEditingKey(null)}
+                    </span>
+                    {item.kind === "event" ? (
+                      <span aria-hidden className="mx-[3px] mt-[5px] size-[9px] shrink-0 rotate-45 border border-foreground" />
+                    ) : (
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={item.done}
+                        disabled={pendingKeys.includes(item.key)}
+                        onCheckedChange={(checked) => onToggle(item, checked)}
+                        aria-label={`${item.title} 완료 표시`}
                       />
                     )}
-                  </li>
-                </Fragment>
-              )
-            })}
-            {lineIndex === -1 && nowLine}
-          </ol>
-        )}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span
+                        className={cn(
+                          "text-[15px] leading-5 break-words",
+                          item.done && "text-dim line-through decoration-foreground/40"
+                        )}
+                      >
+                        {item.title}
+                      </span>
+                      <span className="text-xs text-dim">
+                        {meta}
+                        {overdue && <span className="text-foreground"> · 밀림</span>}
+                      </span>
+                    </div>
+                    {current && (
+                      <span className="hidden self-center font-mono text-[11px] tracking-[0.14em] whitespace-nowrap sm:inline">
+                        진행 중
+                      </span>
+                    )}
+                    {item.kind === "routine" ? (
+                      <Link
+                        href="/calendar"
+                        className={buttonVariants({ size: "xs", variant: "ghost", className: "text-muted-foreground" })}
+                      >
+                        수정
+                      </Link>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        className="text-muted-foreground"
+                        onClick={() => setEditingKey(editing ? null : item.key)}
+                      >
+                        {editing ? "닫기" : "수정"}
+                      </Button>
+                    )}
+                  </div>
+                  {editing && (
+                    <ItemEditor
+                      value={{
+                        kind: item.kind,
+                        id: item.id,
+                        title: item.title,
+                        minutes: item.end - item.start,
+                        goalId: item.goalId,
+                        date: item.ymd,
+                        start: item.start,
+                        weekdays: [],
+                      }}
+                      goals={goals}
+                      onClose={() => setEditingKey(null)}
+                    />
+                  )}
+                </li>
+              </Fragment>
+            )
+          })}
+          {lineIndex === -1 && nowLine}
+        </ol>
+      )}
 
-        <div className="border-t pt-4">
-          <p className="mb-2 text-sm font-medium">빠른 입력</p>
-          <QuickAdd today={today} now={now} />
-        </div>
-      </CardContent>
-    </Card>
+      <div className="flex flex-col gap-2 border-t border-foreground/10 pt-5">
+        <p className="text-[13px] font-medium">빠른 입력</p>
+        <QuickAdd today={today} now={now} />
+      </div>
+    </section>
   )
 }
 
@@ -394,56 +417,60 @@ function UnscheduledCard({ tasks }: { tasks: UnscheduledTask[] }) {
   const [error, setError] = useState("")
 
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle>시간 미정 {tasks.length}개</CardTitle>
-        <CardDescription>일할 수 있는 시간 안에 빈 자리가 없어 아직 못 넣은 할 일이에요.</CardDescription>
-        <CardAction>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await placeUnscheduledAction()
-                setError(result.ok ? "" : result.error)
-              })
-            }
+    <section aria-label="시간 미정 할 일" className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <SectionLabel code="LATER">시간 미정 {tasks.length}개</SectionLabel>
+          <p className="text-xs text-dim">일할 수 있는 시간 안에 빈 자리가 없어 아직 못 넣은 할 일이에요.</p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-9 px-3"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const result = await placeUnscheduledAction()
+              setError(result.ok ? "" : result.error)
+            })
+          }
+        >
+          {pending ? "넣는 중…" : "빈 시간에 넣기"}
+        </Button>
+      </div>
+      <ul className="flex flex-col text-sm">
+        {tasks.map((task) => (
+          <li
+            key={task.id}
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-foreground/[0.07] py-3"
           >
-            {pending ? "넣는 중…" : "빈 시간에 넣기"}
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <ul className="flex flex-col gap-1 text-sm">
-          {tasks.map((task) => (
-            <li key={task.id} className="flex flex-wrap items-center gap-1.5">
-              <span>{task.title}</span>
-              <span className="text-xs text-muted-foreground">
-                {formatDuration(task.minutes)}
-                {task.goalTitle && ` · 목표: ${task.goalTitle}`}
-              </span>
+            <span className="flex flex-wrap items-center gap-1.5">
+              {task.title}
               {task.source === "ai" && (
                 <Badge variant="secondary">
                   <Sparkles data-icon="inline-start" />
                   AI
                 </Badge>
               )}
-            </li>
-          ))}
-        </ul>
-        {error && (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+            </span>
+            <span className="font-mono text-xs text-dim">
+              {formatDuration(task.minutes)}
+              {task.goalTitle && ` · ${task.goalTitle}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </section>
   )
 }
 
-// ── 3번 이상 미룬 할 일: 쪼갤지/뺄지 묻기 ─────────────────────
+// ── 3번 이상 미룬 할 일: MOMO가 쪼갤지/뺄지 묻기 ─────────────
 
 function CarriedPrompt({ tasks }: { tasks: CarriedTask[] }) {
   const [pending, startTransition] = useTransition()
@@ -464,14 +491,17 @@ function CarriedPrompt({ tasks }: { tasks: CarriedTask[] }) {
   if (tasks.length === 0 && !message) return null
 
   return (
-    <section aria-label="자주 미룬 할 일" className="flex flex-col gap-3 rounded-xl bg-muted/60 p-4 ring-1 ring-foreground/10">
+    <section aria-label="자주 미룬 할 일" className="flex flex-col gap-4 border border-dashed border-foreground/15 p-3 md:p-4">
       {tasks.map((task) => (
-        <div key={task.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm">
-            <strong className="font-medium">‘{task.title}’</strong>을(를) {task.carry_count}번 미뤘어요. 쪼개서 작게 할까요, 뺄까요?
+        <div key={task.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-3 text-sm leading-relaxed">
+            <MomoAvatar size={29} />
+            <span>
+              <strong className="font-medium">‘{task.title}’</strong>을(를) {task.carry_count}번 미뤘어요. 쪼개서 작게 할까요, 뺄까요?
+            </span>
           </p>
           <div className="flex shrink-0 flex-wrap gap-1.5">
-            <Button type="button" size="sm" disabled={pending} onClick={() => run(task.id, () => splitTask(task.id))}>
+            <Button type="button" size="sm" className="h-9 px-3" disabled={pending} onClick={() => run(task.id, () => splitTask(task.id))}>
               <Sparkles data-icon="inline-start" />
               {busyId === task.id ? "쪼개는 중…" : "AI로 쪼개기"}
             </Button>
@@ -479,6 +509,7 @@ function CarriedPrompt({ tasks }: { tasks: CarriedTask[] }) {
               type="button"
               size="sm"
               variant="outline"
+              className="h-9 px-3"
               disabled={pending}
               onClick={() => {
                 if (window.confirm(`'${task.title}'을(를) 지울까요?`)) run(task.id, () => deleteTask(task.id))
@@ -486,7 +517,7 @@ function CarriedPrompt({ tasks }: { tasks: CarriedTask[] }) {
             >
               빼기
             </Button>
-            <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => run(task.id, () => keepTask(task.id))}>
+            <Button type="button" size="sm" variant="ghost" className="h-9 px-3" disabled={pending} onClick={() => run(task.id, () => keepTask(task.id))}>
               그대로 두기
             </Button>
           </div>

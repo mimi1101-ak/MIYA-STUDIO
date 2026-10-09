@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from "react"
 
+import { MomoAvatar, MomoLine } from "@/components/momo-avatar"
+import { CornerFrame, SectionLabel } from "@/components/space-ui"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import type { ChatMessage } from "@/lib/goal-ai"
-import { cn } from "@/lib/utils"
 import { LIMITS } from "@/lib/validation"
 
 import { sendGoalMessage } from "./actions"
@@ -21,6 +22,8 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
   const [error, setError] = useState("")
   const [pending, startTransition] = useTransition()
   const endRef = useRef<HTMLDivElement>(null)
+  // 화면을 연 뒤에 새로 온 MOMO의 답만 한 글자씩 보여 줍니다(이전 대화는 바로 보임).
+  const [firstUnseen] = useState(messages.length)
 
   // 새 메시지가 오면 맨 아래로
   useEffect(() => {
@@ -60,46 +63,55 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
     : messages
 
   return (
-    <section aria-label="MOMO와 대화" className="flex flex-col gap-3">
-      <ol className="flex flex-col gap-3" aria-live="polite">
+    <CornerFrame aria-label="MOMO와 대화" className="flex flex-col gap-6 p-4 md:p-6">
+      <SectionLabel code="CHANNEL">MOMO와 대화</SectionLabel>
+
+      <ol className="flex flex-col gap-6" aria-live="polite">
         <Bubble role="assistant">
           {"어떤 목표를 이루고 싶으세요? 대충 말해 주셔도 돼요.\n필요한 것만 몇 가지 여쭤본 뒤, 월 → 주 → 일 단위로 할 일을 쪼갠 계획안을 보여 드릴게요."}
         </Bubble>
         {shown.map((m, i) => (
-          <Bubble key={i} role={m.role}>
+          <Bubble key={i} role={m.role} typeOut={m.role === "assistant" && i >= firstUnseen}>
             {m.content}
           </Bubble>
         ))}
         {pending && (
-          <li className="max-w-[85%] self-start rounded-xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">
-            MOMO가 생각하고 있어요… 계획안을 만들 때는 1~2분 걸릴 수 있어요.
+          <li className="flex items-center gap-3.5 self-start">
+            <MomoAvatar size={40} />
+            <p className="flex items-center gap-2.5 font-mono text-[13px] leading-relaxed text-muted-foreground">
+              <span aria-hidden className="thinking-dots">
+                <span />
+                <span />
+                <span />
+              </span>
+              MOMO가 생각하고 있어요… 계획안을 만들 때는 1~2분 걸릴 수 있어요.
+            </p>
           </li>
         )}
       </ol>
       <div ref={endRef} />
 
       {messages.length === 0 && !pending && (
-        <div className="flex flex-wrap gap-1.5">
-          {EXAMPLES.map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => setText(example)}
-              className="rounded-full bg-card px-3 py-1 text-xs text-muted-foreground ring-1 ring-foreground/10 hover:bg-muted"
-            >
-              {example}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2.5">
+          <p className="font-mono text-[11px] tracking-[0.14em] text-dim">예시 · 누르면 입력 칸에 채워져요</p>
+          <div className="flex flex-wrap gap-2">
+            {EXAMPLES.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => setText(example)}
+                className="h-10 border border-dashed border-foreground/30 px-4 text-sm transition-colors hover:border-solid hover:border-foreground hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <MomoLine tone="error">{error}</MomoLine>}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5 border-t border-foreground/10 pt-5">
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -109,28 +121,71 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
           placeholder={messages.length ? "답하거나, 계획을 고쳐 달라고 말해 보세요." : "예: 12월까지 전자책 5권 쓰기"}
           aria-label="MOMO에게 보낼 메시지"
           disabled={pending}
+          className="px-3.5 py-3 leading-relaxed"
         />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Enter로 보내기 · Shift+Enter로 줄바꿈</span>
-          <Button type="submit" disabled={!text.trim() || pending}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-mono text-[11px] text-dim">Enter로 보내기 · Shift+Enter로 줄바꿈</span>
+          <Button type="submit" className="h-11 px-5" disabled={!text.trim() || pending}>
             {pending ? "답을 기다리는 중…" : "보내기"}
           </Button>
         </div>
       </form>
-    </section>
+    </CornerFrame>
   )
 }
 
-function Bubble({ role, children }: { role: ChatMessage["role"]; children: string }) {
+// MOMO의 말은 프로필과 함께 바탕 없이, 내 말은 오른쪽 흰 상자로
+function Bubble({ role, typeOut = false, children }: { role: ChatMessage["role"]; typeOut?: boolean; children: string }) {
+  if (role === "user") {
+    return (
+      <li className="flex max-w-[85%] flex-col items-end gap-1.5 self-end">
+        <p className="font-mono text-[11px] tracking-[0.14em] text-dim">나</p>
+        <p className="pixel-corners bg-primary px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line break-words text-primary-foreground">
+          {children}
+        </p>
+      </li>
+    )
+  }
   return (
-    <li
-      className={cn(
-        "max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-line break-words",
-        role === "user" ? "self-end bg-primary text-primary-foreground" : "self-start bg-muted"
-      )}
-    >
-      <span className="sr-only">{role === "user" ? "나: " : "MOMO: "}</span>
-      {children}
+    <li className="flex max-w-[94%] items-start gap-3.5 self-start">
+      <MomoAvatar size={40} />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <p className="font-mono text-[11px] tracking-[0.14em] text-dim">MOMO</p>
+        <p className="text-[15px] leading-[1.8] whitespace-pre-line break-words md:text-base">
+          {typeOut ? <TypeOut text={children} /> : children}
+        </p>
+      </div>
     </li>
+  )
+}
+
+// 새로 온 답을 한 글자씩. 화면 읽기 프로그램에는 전체 문장을 한 번에 알려 줍니다.
+function TypeOut({ text }: { text: string }) {
+  const [shown, setShown] = useState(0)
+  const total = Array.from(text).length
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const chars = Array.from(text)
+    let count = 0
+    let timer: number
+    const step = () => {
+      count = reduce ? chars.length : count + 1
+      setShown(count)
+      if (count >= chars.length) return
+      timer = window.setTimeout(step, /[.,?!\n]/.test(chars[count - 1]) ? 200 : 18)
+    }
+    timer = window.setTimeout(step, reduce ? 0 : 150)
+    return () => clearTimeout(timer)
+  }, [text])
+
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden>
+        {Array.from(text).slice(0, shown).join("")}
+        {shown < total && <span className="caret-inline" />}
+      </span>
+    </>
   )
 }

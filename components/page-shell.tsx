@@ -13,9 +13,9 @@ export function PageShell({
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
       {title && (
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        <div className="flex flex-col gap-2 pt-4 md:pt-8">
+          <h1 className="font-serif text-3xl font-normal tracking-tight md:text-[2.5rem] md:leading-tight">{title}</h1>
+          {description && <p className="text-sm text-muted-foreground md:text-[15px]">{description}</p>}
         </div>
       )}
       {children}

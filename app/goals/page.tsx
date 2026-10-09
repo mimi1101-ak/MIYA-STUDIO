@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Suspense } from "react"
 
 import { LoadingBlock, PageShell } from "@/components/page-shell"
+import { SegmentBar } from "@/components/space-ui"
 import { buttonVariants } from "@/components/ui/button"
 import { loadGoalProgress } from "@/lib/agenda"
 import { percent } from "@/lib/agenda-types"
@@ -13,7 +14,7 @@ export default function GoalsPage() {
   return (
     <PageShell title="목표" description="목표를 정하면 MOMO가 할 일을 쪼개서 일정에 넣어 드려요.">
       <div>
-        <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "px-5" })}>
+        <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "h-11 px-5" })}>
           <Sparkles data-icon="inline-start" />
           새 목표 · MOMO와 대화
         </Link>
@@ -55,7 +56,7 @@ async function GoalList() {
         .filter((group) => group.items.length > 0)
         .map((group) => (
           <section key={group.title} className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">{group.title}</h2>
+            <h2 className="font-mono text-xs tracking-[0.12em] text-dim">{group.title}</h2>
             <ul className="grid gap-3 md:grid-cols-2">
               {group.items.map((goal) => {
                 const p = byId.get(goal.id)
@@ -64,19 +65,17 @@ async function GoalList() {
                   <li key={goal.id}>
                     <Link
                       href={`/goals/${goal.id}`}
-                      className="flex h-full flex-col gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted/60"
+                      className="flex h-full flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10 transition-colors hover:bg-muted/60 hover:ring-foreground/25"
                     >
-                      <span className="font-medium break-words">{goal.title}</span>
+                      <span className="text-[15px] font-medium break-words">{goal.title}</span>
                       <span className="text-xs text-muted-foreground">
                         {goal.deadline ? `마감 ${formatDayLabel(goal.deadline)}` : "마감 미정"}
                         {goal.weekly_minutes ? ` · 주 ${formatDuration(goal.weekly_minutes)}` : ""}
                       </span>
                       {p && (
                         <>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-                            <div className="h-full rounded-full bg-foreground/80" style={{ width: `${done}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground">
+                          <SegmentBar percent={done} label={`${goal.title} 전체 진척도`} />
+                          <span className="font-mono text-xs text-dim">
                             전체 {done}% · 이번 주 {percent(p.weekDone, p.weekTotal)}%
                           </span>
                         </>

@@ -49,11 +49,11 @@ type Props = {
   goalId: string | null
 }
 
-// 종류별 색: 차분한 무채색 안에서 할 일은 진하게, 일정은 옅게, 루틴은 점선 테두리
+// 종류별 색(우주 팔레트): 할 일은 별빛 바탕에 검은 글자, 일정은 어두운 바탕에 흰 테두리, 루틴은 점선 테두리
 const KIND_COLORS: Record<AgendaItem["kind"], { bg: string; border: string; text: string }> = {
-  task: { bg: "#3f3f46", border: "#3f3f46", text: "#ffffff" },
-  event: { bg: "#e7e5e4", border: "#a8a29e", text: "#1c1917" },
-  routine: { bg: "#ffffff", border: "#a3a3a3", text: "#525252" },
+  task: { bg: "#f3f3f1", border: "#f3f3f1", text: "#040405" },
+  event: { bg: "#1b1b1f", border: "#a6a6ab", text: "#f3f3f1" },
+  routine: { bg: "#0b0b0d", border: "#808086", text: "#a6a6ab" },
 }
 
 function calendarUrl(view: CalendarView, date: string, goalId: string | null) {

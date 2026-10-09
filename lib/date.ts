@@ -84,6 +84,11 @@ export function formatClock(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
+// 지금 한국 시각을 초까지. 예: "09:12:07" (위쪽 메뉴의 시계)
+export function formatKstTime(ms: number): string {
+  return new Date(ms + KST_OFFSET_MS).toISOString().slice(11, 19)
+}
+
 // "09:00" 또는 DB의 "09:00:00" → 540. 형식이 틀리면 null
 export function parseClock(value: string): number | null {
   const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value)
@@ -116,6 +121,20 @@ export function formatDayLabel(ymd: string): string {
 export function formatFullDayLabel(ymd: string): string {
   const d = toUtcDate(ymd)
   return `${d.getUTCFullYear()}년 ${monthDay(ymd)} ${WEEKDAYS[d.getUTCDay()]}요일`
+}
+
+// 예: "2026.10.09 FRI" (대시보드 머리줄)
+const WEEKDAYS_EN = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+export function formatStamp(ymd: string): string {
+  return `${ymd.replaceAll("-", ".")} ${WEEKDAYS_EN[weekdayOf(ymd)]}`
+}
+
+// ISO 주 번호(월요일 시작, 그해 첫 목요일이 든 주가 1주). 예: 2026-10-09 → 41
+export function isoWeekNumber(ymd: string): number {
+  const thursday = addDays(ymd, 3 - ((weekdayOf(ymd) + 6) % 7))
+  const jan1 = `${thursday.slice(0, 4)}-01-01`
+  const days = (toUtcDate(thursday).getTime() - toUtcDate(jan1).getTime()) / 86_400_000
+  return Math.floor(days / 7) + 1
 }
 
 // 예: "10월 5일 ~ 10월 11일"

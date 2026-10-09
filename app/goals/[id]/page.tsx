@@ -13,7 +13,7 @@ import { isUuid } from "@/lib/validation"
 
 import { GoalActions } from "../goal-actions"
 import { GoalChat } from "../goal-chat"
-import { PlanView } from "../plan-view"
+import { PlanPlaceholder, PlanView } from "../plan-view"
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "대화 중",
@@ -25,7 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default function GoalPage({ params }: PageProps<"/goals/[id]">) {
   return (
     <PageShell>
-      <Link href="/goals" className="text-xs text-muted-foreground hover:text-foreground">
+      <Link href="/goals" className="pt-4 font-mono text-xs text-muted-foreground hover:text-foreground md:pt-8">
         ← 목표 목록
       </Link>
       <Suspense fallback={<LoadingBlock lines={6} />}>
@@ -56,9 +56,9 @@ async function GoalContent({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight break-words">{goal.title}</h1>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-serif text-3xl tracking-tight break-words md:text-[2.5rem] md:leading-tight">{goal.title}</h1>
           <Badge variant={goal.status === "active" ? "default" : "outline"}>{STATUS_LABELS[goal.status]}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -72,13 +72,7 @@ async function GoalContent({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="grid items-start gap-6 md:grid-cols-2">
         <GoalChat goalId={goal.id} messages={chat} />
-        {plan ? (
-          <PlanView goalId={goal.id} plan={plan} approved={goal.status !== "draft"} />
-        ) : (
-          <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground ring-1 ring-foreground/10">
-            MOMO의 질문에 답하면 여기에 월 → 주 → 일 계획안이 나타나요.
-          </p>
-        )}
+        {plan ? <PlanView goalId={goal.id} plan={plan} approved={goal.status !== "draft"} /> : <PlanPlaceholder />}
       </div>
     </div>
   )
