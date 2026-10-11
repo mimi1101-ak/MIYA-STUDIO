@@ -15,6 +15,8 @@ export const LIMITS = {
   insightTitle: 200,
   insightContent: 10000,
   pastedText: 60000,
+  ideaTitle: 200,
+  ideaNote: 5000,
 } as const
 
 export const URL_ERROR_MESSAGE =

@@ -149,6 +149,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ideas: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          note: string
+          pinned: boolean
+          revisited_at: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string
+          pinned?: boolean
+          revisited_at?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string
+          pinned?: boolean
+          revisited_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       insights: {
         Row: {
           article_id: string | null

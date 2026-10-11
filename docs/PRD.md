@@ -96,6 +96,7 @@
 | 오늘 | `/` | AI 동기부여 메시지, 지금 할 일, 오늘 타임라인, 빠른 입력, 이번 주 목표 진척도 | 본인 |
 | 캘린더 | `/calendar` | 주간/월간 보기, 클릭 추가·수정·삭제, 끌어서 옮기기, 목표별 보기, 루틴 관리 | 본인 |
 | 목표 | `/goals`, `/goals/new`, `/goals/[id]` | 목표 목록·진척도, AI 비서 대화, 월→주→일 계획안, 승인 | 본인 |
+| 아이디어 | `/ideas` | 한 줄 적기(종류: 할 일·사업·만들기·생각), 다시 꺼낸 아이디어(일주일 넘게 안 본 것), 모든 아이디어(검색·종류별·정렬, 고정, 상태, 할 일로 보내기) | 본인 |
 | 트렌드 > EO planet / Long Black | `/news/eo`, `/news/longblack` (`/news`는 `/news/eo`로 이동) | 사이트를 띄워 인기글 보기, 로그인해서 보기, 글 저장(비서 보고서) | 본인 |
 | 트렌드 > 저장한 글 | `/insights` | 저장한 글 카드(AI 요약, 내 인사이트 메모, 글 삭제), 출처별 보기, 글 없이 쓴 인사이트 | 본인 |
 | 마이 프로젝트 | `/projects` | 프로젝트 카드(이름·설명·주소), 추가·수정·삭제 | 본인 |
@@ -110,6 +111,7 @@
 | goals | id, user_id, title, description, deadline(날짜), weekly_minutes(주당 분), status(draft/active/done/archived), chat(AI 대화 기록), plan(승인 전 계획안), created_at, updated_at | 목표 |
 | tasks | id, user_id, goal_id(비어 있을 수 있음), title, estimated_minutes(예상 분), scheduled_at(배치된 시작 시각, 비면 시간 미정), is_done, done_at, source(manual/ai), carry_count(이월 횟수), sort_order, created_at, updated_at | 할 일 |
 | events | id, user_id, title, starts_at, ends_at, created_at, updated_at | 일정(시간 고정) |
+| ideas | id, user_id, title(한 줄, 200자), note(자세한 내용, 5천 자), kind(todo/business/make/thought), status(open/doing/done), pinned(고정), revisited_at(마지막으로 다시 본 때), created_at, updated_at | 아이디어 메모. revisited_at이 오래된 것부터 다시 꺼냄 |
 | routines | id, user_id, title, weekdays(요일 목록), start_time, duration_minutes, created_at, updated_at | 루틴(반복 습관) |
 | routine_checks | routine_id, user_id, check_date | 루틴을 어느 날 했는지 |
 | daily_messages | id(글자), user_id(글자), message_date(날짜), content(글자), created_at(날짜시간) | 하루 한 개의 AI 동기부여 메시지. user_id+message_date 중복 불가 |
@@ -118,7 +120,7 @@
 | projects | id(글자), user_id(글자), name(글자), url(글자), description(글자), sort_order(정수), created_at(날짜시간) | 마이 프로젝트 링크 |
 
 **접근 규칙**
-- profiles, tasks, goals, events, routines, routine_checks, daily_messages, insights, projects에 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. `user_id`(profiles는 `id`)가 로그인한 사용자 ID와 같은 행만 읽기·쓰기 가능합니다.
+- profiles, tasks, goals, events, routines, routine_checks, ideas, daily_messages, insights, projects에 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. `user_id`(profiles는 `id`)가 로그인한 사용자 ID와 같은 행만 읽기·쓰기 가능합니다.
 - articles는 로그인한 사용자만 읽을 수 있고, 쓰기는 서버(글 수집 작업)만 합니다.
 - AI API 키 등 비밀 값은 서버에서만 사용하고 브라우저 코드에 넣지 않습니다.
 

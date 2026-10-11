@@ -17,7 +17,7 @@
 
 ## 폴더 구조
 - `app/` — 화면(페이지)과 서버 API(route handler: 서버에서 실행되는 기능 주소)
-  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/news/`(트렌드: `eo/`, `longblack/`), `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
+  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/ideas/`, `app/news/`(트렌드: `eo/`, `longblack/`), `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
   - `app/api/` — AI 메시지 생성, 글 수집 같은 서버 전용 기능
 - `components/` — 여러 화면에서 쓰는 화면 조각
 - `components/ui/` — shadcn/ui 기본 부품 (직접 고치지 않음)
@@ -39,7 +39,7 @@
 **보안·데이터**
 - 비밀 값(Supabase 서비스 키, AI API 키 등)은 `.env.local`에만 두고 커밋(변경 기록 저장)하지 않습니다. `.gitignore`에 `.env.local`이 들어 있는지 확인합니다.
 - 비밀 값은 서버 코드(`app/api/`, 서버 컴포넌트)에서만 씁니다. 브라우저에서 보이는 값은 `NEXT_PUBLIC_`으로 시작하는 공개 값만 허용합니다.
-- 사용자 데이터 테이블(profiles, tasks, goals, events, routines, routine_checks, daily_messages, insights, projects)은 모두 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. articles는 로그인 사용자 읽기만 허용하고, 쓰기는 서버만 합니다.
+- 사용자 데이터 테이블(profiles, tasks, goals, events, routines, routine_checks, ideas, daily_messages, insights, projects)은 모두 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. articles는 로그인 사용자 읽기만 허용하고, 쓰기는 서버만 합니다.
 - DB 구조는 `docs/PRD.md` 6장을 따릅니다. 바꿔야 하면 먼저 사용자에게 묻고, 변경은 `supabase/migrations/`에 새 파일로 남깁니다.
 
 **이 프로젝트 전용 규칙**

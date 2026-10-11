@@ -17,6 +17,7 @@ const NAV_ITEMS: (NavLink | NavGroup)[] = [
   { href: "/", label: "오늘" },
   { href: "/calendar", label: "캘린더" },
   { href: "/goals", label: "목표" },
+  { href: "/ideas", label: "아이디어" },
   // 트렌드: EO planet · Long Black · 저장한 글을 하위 메뉴로
   { label: "트렌드", href: TREND_LINKS[0].href, children: TREND_LINKS, match: ["/news", "/insights"] },
   { href: "/projects", label: "프로젝트" },
@@ -29,6 +30,8 @@ const MOBILE_ITEMS: (NavLink | NavGroup)[] = [...NAV_ITEMS, PROFILE]
 const itemClass =
   "inline-flex items-center gap-2 whitespace-nowrap text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
 const activeClass = "text-foreground before:size-1 before:bg-foreground before:content-['']"
+// PC 메뉴 한 칸. 1024~1279px에서는 메뉴 6개가 가운데 MIYA STUDIO에 닿지 않게 옆 여백을 조금 줄입니다.
+const PC_ITEM = "h-9 rounded-md px-2.5 text-[13px] tracking-wide xl:px-3"
 
 // 모든 화면 위쪽의 메뉴. 로그인 화면에서는 숨깁니다.
 // PC: 떠 있는 막대(왼쪽 메뉴 · 가운데 MIYA STUDIO · 오른쪽 시계·프로필·MOMO와 대화)
@@ -108,7 +111,7 @@ function NavItem({ href, label, active }: { href: string; label: string; active:
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={cn(itemClass, "h-9 rounded-md px-3 text-[13px] tracking-wide", active && activeClass)}
+      className={cn(itemClass, PC_ITEM, active && activeClass)}
     >
       {label}
     </Link>
@@ -170,7 +173,7 @@ function TrendMenu({ group, active, pathname }: { group: NavGroup; active: boole
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={cn(itemClass, "h-9 rounded-md px-3 text-[13px] tracking-wide", active && activeClass)}
+        className={cn(itemClass, PC_ITEM, active && activeClass)}
       >
         {group.label}
         <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />

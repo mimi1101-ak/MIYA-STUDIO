@@ -27,6 +27,11 @@ export function addDays(ymd: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+// from부터 to까지 며칠인지. 예: 10월 8일 → 10월 11일 = 3
+export function daysBetween(from: string, to: string): number {
+  return Math.round((toUtcDate(to).getTime() - toUtcDate(from).getTime()) / 86_400_000)
+}
+
 // 이번 주 월요일
 export function weekStartKST(now: Date = new Date()): string {
   const today = todayKST(now)
