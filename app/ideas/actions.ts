@@ -3,6 +3,7 @@
 import { refresh } from "next/cache"
 
 import { requireUser } from "@/lib/auth"
+import { BOARD_BUCKET } from "@/lib/idea-board"
 import { isIdeaKind, isIdeaStatus, type IdeaKind, type IdeaStatus } from "@/lib/ideas"
 import { quickAdd } from "@/lib/schedule-actions"
 import { cleanText, isUuid, LIMITS, type ActionResult } from "@/lib/validation"
@@ -103,6 +104,14 @@ export async function revisitIdea(id: string): Promise<ActionResult> {
 export async function deleteIdea(id: string): Promise<ActionResult> {
   if (!isUuid(id)) return BAD_REQUEST
   const { supabase, userId } = await requireUser()
+
+  // 대시보드 사진 파일도 함께 지웁니다(표의 줄은 아이디어를 지우면 같이 지워짐).
+  const folder = `${userId}/${id}`
+  const { data: files } = await supabase.storage.from(BOARD_BUCKET).list(folder, { limit: 1000 })
+  if (files?.length) {
+    const { error: fileError } = await supabase.storage.from(BOARD_BUCKET).remove(files.map((f) => `${folder}/${f.name}`))
+    if (fileError) console.error("[ideas] 대시보드 사진 삭제 실패:", fileError.message)
+  }
 
   const { error } = await supabase.from("ideas").delete().eq("id", id).eq("user_id", userId)
   if (error) return { ok: false, error: "지우지 못했어요. 잠시 후 다시 시도해 주세요." }

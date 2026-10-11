@@ -10,6 +10,7 @@ import { toChat, toIdea } from "@/lib/ideas"
 import { isUuid } from "@/lib/validation"
 
 import { IdeaHeader } from "./idea-header"
+import { IdeaTabs } from "./idea-tabs"
 import { IdeaWorkspace } from "./idea-workspace"
 
 // MOMO가 사업계획서를 쓰는 데 1~2분 걸리므로, 이 화면의 서버 기능은 최대 5분까지 기다립니다.
@@ -45,6 +46,7 @@ async function IdeaContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="flex flex-col gap-6">
       <IdeaHeader idea={idea} today={todayKST()} />
+      {idea.kind === "business" && <IdeaTabs ideaId={idea.id} active="consult" />}
       <IdeaWorkspace
         idea={idea}
         messages={toChat(data.chat)}

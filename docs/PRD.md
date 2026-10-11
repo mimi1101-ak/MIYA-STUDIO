@@ -96,7 +96,7 @@
 | 오늘 | `/` | AI 동기부여 메시지, 지금 할 일, 오늘 타임라인, 빠른 입력, 이번 주 목표 진척도 | 본인 |
 | 캘린더 | `/calendar` | 주간/월간 보기, 클릭 추가·수정·삭제, 끌어서 옮기기, 목표별 보기, 루틴 관리 | 본인 |
 | 목표 | `/goals`, `/goals/new`, `/goals/[id]` | 목표 목록·진척도, AI 비서 대화, 월→주→일 계획안, 승인 | 본인 |
-| 아이디어 | `/ideas`, `/ideas/[id]` | 한 줄 적기(종류: 할 일·사업·만들기·생각), 다시 꺼낸 아이디어(일주일 넘게 안 본 것), 모든 아이디어(검색·종류별·정렬, 고정, 상태, 할 일로 보내기). 아이디어마다 MOMO와 대화(사업가·컨설턴트) → 사업계획서·기획서·실행 계획서 | 본인 |
+| 아이디어 | `/ideas`, `/ideas/[id]`, `/ideas/[id]/board` | 한 줄 적기(종류: 할 일·사업·만들기·생각), 다시 꺼낸 아이디어(일주일 넘게 안 본 것), 모든 아이디어(검색·종류별·정렬, 고정, 상태, 할 일로 보내기). 아이디어마다 MOMO와 대화(사업가·컨설턴트) → 사업계획서·기획서·실행 계획서. 사업 아이디어는 대시보드(우주 배경 사진 보드: 올리기, 순서·크기·맞춤·설명) | 본인 |
 | 트렌드 > EO planet / Long Black | `/news/eo`, `/news/longblack` (`/news`는 `/news/eo`로 이동) | 사이트를 띄워 인기글 보기, 로그인해서 보기, 글 저장(비서 보고서) | 본인 |
 | 트렌드 > 저장한 글 | `/insights` | 저장한 글 카드(AI 요약, 내 인사이트 메모, 글 삭제), 출처별 보기, 글 없이 쓴 인사이트 | 본인 |
 | 마이 프로젝트 | `/projects` | 프로젝트 카드(이름·설명·주소), 추가·수정·삭제 | 본인 |
@@ -116,12 +116,14 @@
 | routine_checks | routine_id, user_id, check_date | 루틴을 어느 날 했는지 |
 | daily_messages | id(글자), user_id(글자), message_date(날짜), content(글자), created_at(날짜시간) | 하루 한 개의 AI 동기부여 메시지. user_id+message_date 중복 불가 |
 | articles | id(글자), source(글자: eo_planet/long_black. 예전 값 naver_market/naver_trend는 DB가 허용하지만 화면에서 쓰지 않음), category(글자), title(글자), url(글자), published_at(날짜시간), fetched_at(날짜시간), summary(AI 읽기 보고서 JSON, 1만 자 이내. 예전 형식은 첫 줄 요지 + 다음 줄 핵심), summarized_at(날짜시간) | 외부에서 가져온 글 목록. url 중복 불가 |
+| idea_board_items | id, user_id, idea_id, path(Storage 파일 경로), width·height(사진 픽셀), col_span(가로 1~6칸), row_span(세로 1~4칸), fit(cover/contain), caption(설명), sort_order, created_at, updated_at | 사업 아이디어 대시보드의 사진. 파일은 Storage 비공개 버킷 `idea-boards`의 `사용자ID/아이디어ID/` 폴더 |
 | insights | id(글자), user_id(글자), article_id(글자, 비어 있을 수 있음), title(글자), content(글자), created_at(날짜시간), updated_at(날짜시간) | 사용자가 정리한 인사이트 |
 | projects | id(글자), user_id(글자), name(글자), url(글자), description(글자), sort_order(정수), created_at(날짜시간) | 마이 프로젝트 링크 |
 
 **접근 규칙**
-- profiles, tasks, goals, events, routines, routine_checks, ideas, daily_messages, insights, projects에 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. `user_id`(profiles는 `id`)가 로그인한 사용자 ID와 같은 행만 읽기·쓰기 가능합니다.
+- profiles, tasks, goals, events, routines, routine_checks, ideas, idea_board_items, daily_messages, insights, projects에 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. `user_id`(profiles는 `id`)가 로그인한 사용자 ID와 같은 행만 읽기·쓰기 가능합니다.
 - articles는 로그인한 사용자만 읽을 수 있고, 쓰기는 서버(글 수집 작업)만 합니다.
+- 대시보드 사진(Storage `idea-boards`)은 비공개이고, 첫 폴더 이름이 자기 사용자 ID인 파일만 읽기·올리기·지우기 가능합니다. 화면에는 6시간짜리 임시 주소로 보여 줍니다.
 - AI API 키 등 비밀 값은 서버에서만 사용하고 브라우저 코드에 넣지 않습니다.
 
 ## 7. 추천 기술 스택

@@ -1,4 +1,5 @@
 // 모든 화면 뒤에 까는 검은 우주: 별, 반짝이는 십자 별, 왼쪽 아래 픽셀 성운, 옅은 가로줄.
+// Starfield는 대시보드처럼 화면 안에 들어가는 작은 우주 창입니다.
 // 별 자리는 무작위처럼 보이지만 씨앗 값이 고정이라 매번 같은 자리에 뜹니다(서버·브라우저 화면이 같게).
 
 function seeded(seed: number) {
@@ -61,6 +62,66 @@ function PixelSparkle({ className, size }: { className: string; size: number }) 
         <rect x="6" y="4" width="2" height="1" />
       </g>
     </svg>
+  )
+}
+
+// 대시보드처럼 화면 안의 작은 우주 창: 별 + 픽셀 성운 두 덩이 + 옅은 빛. 창 크기에 맞춰 퍼센트로 찍습니다.
+const FIELD_STARS: Star[] = (() => {
+  const r = seeded(2027)
+  return Array.from({ length: 140 }, () => {
+    const big = r() > 0.93
+    return {
+      left: `${(r() * 100).toFixed(2)}%`,
+      top: `${(r() * 100).toFixed(2)}%`,
+      size: big ? 2 : r() > 0.6 ? 1.5 : 1,
+      opacity: Number((big ? 0.9 : 0.15 + r() * 0.55).toFixed(2)),
+      delay: `${(r() * 6).toFixed(2)}s`,
+      twinkle: r() > 0.7,
+    }
+  })
+})()
+
+export function Starfield() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_78%_12%,rgb(255_255_255/0.07),transparent_55%),radial-gradient(ellipse_at_10%_90%,rgb(255_255_255/0.05),transparent_50%)]" />
+      {FIELD_STARS.map((star, i) => (
+        <span
+          key={i}
+          className={star.twinkle ? "star twinkle" : "star"}
+          style={{
+            left: star.left,
+            top: star.top,
+            width: star.size,
+            height: star.size,
+            opacity: star.opacity,
+            animationDelay: star.delay,
+          }}
+        />
+      ))}
+      {[
+        "right-[12%] top-[14%]",
+        "left-[14%] bottom-[12%]",
+      ].map((position, n) => (
+        <div key={position} className={`absolute ${position}`}>
+          {DUST.map((d, i) => (
+            <span
+              key={i}
+              className="absolute bg-[#d9d9dc]"
+              style={{
+                left: n ? -d.x : d.x,
+                top: n ? -d.y : d.y,
+                width: d.size,
+                height: d.size,
+                opacity: d.opacity * (n ? 0.6 : 0.8),
+              }}
+            />
+          ))}
+        </div>
+      ))}
+      <PixelSparkle size={20} className="absolute top-[30%] left-[6%] opacity-70" />
+      <PixelSparkle size={16} className="absolute right-[5%] bottom-[24%] opacity-50" />
+    </div>
   )
 }
 

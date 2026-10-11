@@ -39,7 +39,8 @@
 **보안·데이터**
 - 비밀 값(Supabase 서비스 키, AI API 키 등)은 `.env.local`에만 두고 커밋(변경 기록 저장)하지 않습니다. `.gitignore`에 `.env.local`이 들어 있는지 확인합니다.
 - 비밀 값은 서버 코드(`app/api/`, 서버 컴포넌트)에서만 씁니다. 브라우저에서 보이는 값은 `NEXT_PUBLIC_`으로 시작하는 공개 값만 허용합니다.
-- 사용자 데이터 테이블(profiles, tasks, goals, events, routines, routine_checks, ideas, daily_messages, insights, projects)은 모두 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. articles는 로그인 사용자 읽기만 허용하고, 쓰기는 서버만 합니다.
+- 사용자 데이터 테이블(profiles, tasks, goals, events, routines, routine_checks, ideas, idea_board_items, daily_messages, insights, projects)은 모두 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. articles는 로그인 사용자 읽기만 허용하고, 쓰기는 서버만 합니다.
+- 사진 파일은 Storage 비공개 버킷 `idea-boards`에 `사용자ID/아이디어ID/파일` 경로로만 둡니다(자기 폴더만 읽고 쓰는 규칙). 공개 버킷으로 바꾸지 않습니다.
 - DB 구조는 `docs/PRD.md` 6장을 따릅니다. 바꿔야 하면 먼저 사용자에게 묻고, 변경은 `supabase/migrations/`에 새 파일로 남깁니다.
 
 **이 프로젝트 전용 규칙**

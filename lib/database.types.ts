@@ -149,6 +149,62 @@ export type Database = {
         }
         Relationships: []
       }
+      idea_board_items: {
+        Row: {
+          caption: string
+          col_span: number
+          created_at: string
+          fit: string
+          height: number
+          id: string
+          idea_id: string
+          path: string
+          row_span: number
+          sort_order: number
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          caption?: string
+          col_span?: number
+          created_at?: string
+          fit?: string
+          height: number
+          id?: string
+          idea_id: string
+          path: string
+          row_span?: number
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          width: number
+        }
+        Update: {
+          caption?: string
+          col_span?: number
+          created_at?: string
+          fit?: string
+          height?: number
+          id?: string
+          idea_id?: string
+          path?: string
+          row_span?: number
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_board_items_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ideas: {
         Row: {
           chat: Json
