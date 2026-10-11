@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils"
 type NavLink = { href: string; label: string }
 type NavGroup = { label: string; href: string; children: typeof TREND_LINKS; match: string[] }
 
+// "오늘"(/)은 메뉴에 두지 않고, MIYA STUDIO 로고를 눌러 갑니다.
 const NAV_ITEMS: (NavLink | NavGroup)[] = [
-  { href: "/", label: "오늘" },
   { href: "/calendar", label: "캘린더" },
   { href: "/goals", label: "목표" },
   { href: "/ideas", label: "아이디어" },
@@ -30,8 +30,8 @@ const MOBILE_ITEMS: (NavLink | NavGroup)[] = [...NAV_ITEMS, PROFILE]
 const itemClass =
   "inline-flex items-center gap-2 whitespace-nowrap text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
 const activeClass = "text-foreground before:size-1 before:bg-foreground before:content-['']"
-// PC 메뉴 한 칸. 1024~1279px에서는 메뉴 6개가 가운데 MIYA STUDIO에 닿지 않게 옆 여백을 조금 줄입니다.
-const PC_ITEM = "h-9 rounded-md px-2.5 text-[13px] tracking-wide xl:px-3"
+// PC 메뉴 한 칸
+const PC_ITEM = "h-9 rounded-md px-3 text-[13px] tracking-wide"
 
 // 모든 화면 위쪽의 메뉴. 로그인 화면에서는 숨깁니다.
 // PC: 떠 있는 막대(왼쪽 메뉴 · 가운데 MIYA STUDIO · 오른쪽 시계·프로필·MOMO와 대화)
