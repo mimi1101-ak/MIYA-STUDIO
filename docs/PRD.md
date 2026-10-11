@@ -96,7 +96,7 @@
 | 오늘 | `/` | AI 동기부여 메시지, 지금 할 일, 오늘 타임라인, 빠른 입력, 이번 주 목표 진척도 | 본인 |
 | 캘린더 | `/calendar` | 주간/월간 보기, 클릭 추가·수정·삭제, 끌어서 옮기기, 목표별 보기, 루틴 관리 | 본인 |
 | 목표 | `/goals`, `/goals/new`, `/goals/[id]` | 목표 목록·진척도, AI 비서 대화, 월→주→일 계획안, 승인 | 본인 |
-| 아이디어 | `/ideas` | 한 줄 적기(종류: 할 일·사업·만들기·생각), 다시 꺼낸 아이디어(일주일 넘게 안 본 것), 모든 아이디어(검색·종류별·정렬, 고정, 상태, 할 일로 보내기) | 본인 |
+| 아이디어 | `/ideas`, `/ideas/[id]` | 한 줄 적기(종류: 할 일·사업·만들기·생각), 다시 꺼낸 아이디어(일주일 넘게 안 본 것), 모든 아이디어(검색·종류별·정렬, 고정, 상태, 할 일로 보내기). 아이디어마다 MOMO와 대화(사업가·컨설턴트) → 사업계획서·기획서·실행 계획서 | 본인 |
 | 트렌드 > EO planet / Long Black | `/news/eo`, `/news/longblack` (`/news`는 `/news/eo`로 이동) | 사이트를 띄워 인기글 보기, 로그인해서 보기, 글 저장(비서 보고서) | 본인 |
 | 트렌드 > 저장한 글 | `/insights` | 저장한 글 카드(AI 요약, 내 인사이트 메모, 글 삭제), 출처별 보기, 글 없이 쓴 인사이트 | 본인 |
 | 마이 프로젝트 | `/projects` | 프로젝트 카드(이름·설명·주소), 추가·수정·삭제 | 본인 |
@@ -111,7 +111,7 @@
 | goals | id, user_id, title, description, deadline(날짜), weekly_minutes(주당 분), status(draft/active/done/archived), chat(AI 대화 기록), plan(승인 전 계획안), created_at, updated_at | 목표 |
 | tasks | id, user_id, goal_id(비어 있을 수 있음), title, estimated_minutes(예상 분), scheduled_at(배치된 시작 시각, 비면 시간 미정), is_done, done_at, source(manual/ai), carry_count(이월 횟수), sort_order, created_at, updated_at | 할 일 |
 | events | id, user_id, title, starts_at, ends_at, created_at, updated_at | 일정(시간 고정) |
-| ideas | id, user_id, title(한 줄, 200자), note(자세한 내용, 5천 자), kind(todo/business/make/thought), status(open/doing/done), pinned(고정), revisited_at(마지막으로 다시 본 때), created_at, updated_at | 아이디어 메모. revisited_at이 오래된 것부터 다시 꺼냄 |
+| ideas | id, user_id, title(한 줄, 200자), note(자세한 내용, 5천 자), kind(todo/business/make/thought), status(open/doing/done), pinned(고정), revisited_at(마지막으로 다시 본 때), chat(MOMO와 나눈 대화), report(MOMO가 쓴 문서 JSON), chatted_at, reported_at, created_at, updated_at | 아이디어 메모. revisited_at이 오래된 것부터 다시 꺼냄 |
 | routines | id, user_id, title, weekdays(요일 목록), start_time, duration_minutes, created_at, updated_at | 루틴(반복 습관) |
 | routine_checks | routine_id, user_id, check_date | 루틴을 어느 날 했는지 |
 | daily_messages | id(글자), user_id(글자), message_date(날짜), content(글자), created_at(날짜시간) | 하루 한 개의 AI 동기부여 메시지. user_id+message_date 중복 불가 |
@@ -130,7 +130,7 @@
 | 프레임워크 | Next.js (App Router) + TypeScript | 화면과 서버 기능(글 수집, AI 호출)을 한 프로젝트에서 처리 |
 | 스타일 | Tailwind CSS + shadcn/ui | 디자인 지식 없이도 깔끔한 사무실 느낌 화면을 빠르게 구성 |
 | DB·로그인 | Supabase (Postgres, Auth) | 카카오·구글 로그인을 기본 제공하고 무료 플랜으로 시작 가능 |
-| AI | Claude API | 동기부여 메시지, 목표 비서, 할 일 쪼개기 (DECISIONS.md 참고) |
+| AI | Claude API | 동기부여 메시지, 목표 비서, 할 일 쪼개기, 아이디어 컨설팅·사업계획서 (DECISIONS.md 참고) |
 | 결제 | 사용 안 함 | 본인만 쓰는 무료 서비스 |
 | 배포 | Vercel | GitHub 연결만으로 배포, PC·휴대폰 어디서든 접속 |
 | 앱 형태 | 반응형 웹 | 모바일 앱이 꼭 필요하다는 요구가 없어 웹 하나로 PC·휴대폰 모두 지원 |

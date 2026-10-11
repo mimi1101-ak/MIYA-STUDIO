@@ -6,6 +6,7 @@ import { useState, useTransition, type FormEvent, type ReactNode } from "react"
 
 import { addMemo, deleteInsight, updateMemo } from "@/app/insights/actions"
 import { deleteArticle, summarizeArticle } from "@/app/news/actions"
+import { MetaCell, Section } from "@/components/report-parts"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -353,53 +354,6 @@ function FullReport({ article, report }: { article: SavedArticleView; report: Ar
         ※ MOMO(AI)가 원문을 읽고 정리한 보고서예요. 정확한 내용은 원문에서 확인하세요.
       </p>
     </div>
-  )
-}
-
-function MetaCell({ label, wide = false, children }: { label: string; wide?: boolean; children: ReactNode }) {
-  return (
-    <>
-      <dt className="border-r border-b border-foreground/25 bg-muted/60 px-2 py-1.5 text-muted-foreground">{label}</dt>
-      <dd className={cn("border-r border-b border-foreground/25 px-2 py-1.5 break-words", wide && "sm:col-span-3")}>
-        {children}
-      </dd>
-    </>
-  )
-}
-
-// 보고서 섹션. 휴대폰에서는 눌러서 펼치고, 넓은 화면에서는 항상 펼쳐 둡니다.
-function Section({
-  number,
-  title,
-  alwaysOpen = false,
-  children,
-}: {
-  number: number
-  title: string
-  alwaysOpen?: boolean
-  children: ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  const heading = `${number}. ${title}`
-  return (
-    <section className="mt-5">
-      <h3 className="mb-2 border-b border-foreground/25 pb-1 font-serif text-[15px] font-semibold">
-        {alwaysOpen ? (
-          heading
-        ) : (
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            className="flex w-full items-center justify-between text-left md:pointer-events-none"
-          >
-            {heading}
-            <ChevronDown className={cn("size-4 transition-transform md:hidden", open && "rotate-180")} aria-hidden />
-          </button>
-        )}
-      </h3>
-      <div className={cn(!alwaysOpen && !open && "hidden md:block")}>{children}</div>
-    </section>
   )
 }
 

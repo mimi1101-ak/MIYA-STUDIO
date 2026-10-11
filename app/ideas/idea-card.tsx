@@ -1,8 +1,10 @@
 "use client"
 
 import { Pin } from "lucide-react"
+import Link from "next/link"
 import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react"
 
+import { MomoAvatar } from "@/components/momo-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,12 +23,32 @@ import {
   type IdeaKind,
   type IdeaStatus,
 } from "@/lib/ideas"
+import { DOC_TYPES } from "@/lib/idea-report"
 import { cn } from "@/lib/utils"
 import { LIMITS, type ActionResult } from "@/lib/validation"
 
 import { deleteIdea, revisitIdea, sendIdeaToToday, setIdeaPinned, setIdeaStatus, updateIdea } from "./actions"
 
 export type Notice = { type: "ok" | "error"; text: string }
+
+// MOMO와 대화하러 가는 줄 (아이디어 화면 /ideas/[id]). 문서가 있으면 문서 이름을 보여 줍니다.
+export function MomoLink({ idea }: { idea: Idea }) {
+  const label = idea.reported
+    ? `${DOC_TYPES[idea.kind]} 보기 · 대화 이어 가기`
+    : idea.chatted
+      ? "MOMO와 대화 이어 가기"
+      : "MOMO와 대화하기"
+  return (
+    <Link
+      href={`/ideas/${idea.id}`}
+      className="flex items-center gap-2.5 border border-dashed border-foreground/15 px-2.5 py-1.5 text-[13px] text-foreground/85 transition-colors hover:border-foreground/40 hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+    >
+      <MomoAvatar size={29} />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span aria-hidden className="font-mono text-dim">›</span>
+    </Link>
+  )
+}
 
 // 고르는 단추(종류·상태·정렬). 고른 것은 흰 바탕
 export function chipClass(on: boolean) {
@@ -187,8 +209,14 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
         </Button>
       </div>
 
-      <p className="text-[15px] leading-snug font-medium break-words">{idea.title}</p>
+      <Link
+        href={`/ideas/${idea.id}`}
+        className="text-[15px] leading-snug font-medium break-words underline-offset-4 hover:underline"
+      >
+        {idea.title}
+      </Link>
       {idea.note && <IdeaNote text={idea.note} />}
+      <MomoLink idea={idea} />
 
       <p className="mt-auto flex flex-wrap justify-between gap-x-3 gap-y-0.5 font-mono text-[11px] text-dim tabular-nums">
         <span>
@@ -247,7 +275,7 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
   )
 }
 
-function IdeaEditForm({ idea, onDone }: { idea: Idea; onDone: () => void }) {
+export function IdeaEditForm({ idea, onDone }: { idea: Idea; onDone: () => void }) {
   const id = useId()
   const [kind, setKind] = useState(idea.kind)
   const [title, setTitle] = useState(idea.title)

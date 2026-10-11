@@ -151,11 +151,15 @@ export type Database = {
       }
       ideas: {
         Row: {
+          chat: Json
+          chatted_at: string | null
           created_at: string
           id: string
           kind: string
           note: string
           pinned: boolean
+          report: Json | null
+          reported_at: string | null
           revisited_at: string
           status: string
           title: string
@@ -163,11 +167,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat?: Json
+          chatted_at?: string | null
           created_at?: string
           id?: string
           kind?: string
           note?: string
           pinned?: boolean
+          report?: Json | null
+          reported_at?: string | null
           revisited_at?: string
           status?: string
           title: string
@@ -175,11 +183,15 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          chat?: Json
+          chatted_at?: string | null
           created_at?: string
           id?: string
           kind?: string
           note?: string
           pinned?: boolean
+          report?: Json | null
+          reported_at?: string | null
           revisited_at?: string
           status?: string
           title?: string

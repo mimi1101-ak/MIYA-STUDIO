@@ -1,6 +1,7 @@
 "use client"
 
 import { ChevronDown } from "lucide-react"
+import Link from "next/link"
 import { useRef, useState, useTransition, type FormEvent } from "react"
 
 import { MomoLine } from "@/components/momo-avatar"
@@ -34,6 +35,7 @@ import {
   IdeaNote,
   KindPicker,
   KindTag,
+  MomoLink,
   NEXT_STATUS,
   stampOf,
   type Notice,
@@ -214,38 +216,46 @@ function RecallPanel({ ideas, today }: { ideas: Idea[]; today: string }) {
                   </div>
                   <div className="flex flex-col gap-2">
                     <KindTag kind={idea.kind} />
-                    <p className="text-lg leading-snug font-medium break-words">{idea.title}</p>
+                    <Link
+                      href={`/ideas/${idea.id}`}
+                      className="text-lg leading-snug font-medium break-words underline-offset-4 hover:underline"
+                    >
+                      {idea.title}
+                    </Link>
                     {idea.note && <IdeaNote text={idea.note} />}
                     <p className="font-mono text-[11px] text-dim tabular-nums">
                       {stampOf(idea.createdAt)} 적음 · {ageLabel(ageDays(idea, today))}
                     </p>
                   </div>
-                  <div className="mt-auto grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      className="h-10"
-                      disabled={pending}
-                      onClick={() =>
-                        run(idea, () => revisitIdea(idea.id), `좋아요. '${idea.title}'은(는) ${RECALL_AFTER_DAYS}일 뒤에 다시 꺼내 드릴게요.`)
-                      }
-                    >
-                      다시 봤어요
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10"
-                      disabled={pending}
-                      onClick={() =>
-                        run(
-                          idea,
-                          () => setIdeaStatus(idea.id, next.status),
-                          next.status === "doing" ? `'${idea.title}' 시작해 볼까요? 진행 중으로 옮겼어요.` : `'${idea.title}' 끝냈어요. 수고했어요.`
-                        )
-                      }
-                    >
-                      {next.label}
-                    </Button>
+                  <div className="mt-auto flex flex-col gap-3">
+                    <MomoLink idea={idea} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        className="h-10"
+                        disabled={pending}
+                        onClick={() =>
+                          run(idea, () => revisitIdea(idea.id), `좋아요. '${idea.title}'은(는) ${RECALL_AFTER_DAYS}일 뒤에 다시 꺼내 드릴게요.`)
+                        }
+                      >
+                        다시 봤어요
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10"
+                        disabled={pending}
+                        onClick={() =>
+                          run(
+                            idea,
+                            () => setIdeaStatus(idea.id, next.status),
+                            next.status === "doing" ? `'${idea.title}' 시작해 볼까요? 진행 중으로 옮겼어요.` : `'${idea.title}' 끝냈어요. 수고했어요.`
+                          )
+                        }
+                      >
+                        {next.label}
+                      </Button>
+                    </div>
                   </div>
                 </li>
               )

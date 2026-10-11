@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from "react"
 
-import { MomoAvatar, MomoLine } from "@/components/momo-avatar"
+import { MomoLine } from "@/components/momo-avatar"
+import { ChatBubble, ThinkingLine } from "@/components/momo-chat"
 import { CornerFrame, SectionLabel } from "@/components/space-ui"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -67,27 +68,15 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
       <SectionLabel code="CHANNEL">MOMO와 대화</SectionLabel>
 
       <ol className="flex flex-col gap-6" aria-live="polite">
-        <Bubble role="assistant">
+        <ChatBubble role="assistant">
           {"어떤 목표를 이루고 싶으세요? 대충 말해 주셔도 돼요.\n필요한 것만 몇 가지 여쭤본 뒤, 월 → 주 → 일 단위로 할 일을 쪼갠 계획안을 보여 드릴게요."}
-        </Bubble>
+        </ChatBubble>
         {shown.map((m, i) => (
-          <Bubble key={i} role={m.role} typeOut={m.role === "assistant" && i >= firstUnseen}>
+          <ChatBubble key={i} role={m.role} typeOut={m.role === "assistant" && i >= firstUnseen}>
             {m.content}
-          </Bubble>
+          </ChatBubble>
         ))}
-        {pending && (
-          <li className="flex items-center gap-3.5 self-start">
-            <MomoAvatar size={40} />
-            <p className="flex items-center gap-2.5 font-mono text-[13px] leading-relaxed text-muted-foreground">
-              <span aria-hidden className="thinking-dots">
-                <span />
-                <span />
-                <span />
-              </span>
-              MOMO가 생각하고 있어요… 계획안을 만들 때는 1~2분 걸릴 수 있어요.
-            </p>
-          </li>
-        )}
+        {pending && <ThinkingLine>MOMO가 생각하고 있어요… 계획안을 만들 때는 1~2분 걸릴 수 있어요.</ThinkingLine>}
       </ol>
       <div ref={endRef} />
 
@@ -131,61 +120,5 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
         </div>
       </form>
     </CornerFrame>
-  )
-}
-
-// MOMO의 말은 프로필과 함께 바탕 없이, 내 말은 오른쪽 흰 상자로
-function Bubble({ role, typeOut = false, children }: { role: ChatMessage["role"]; typeOut?: boolean; children: string }) {
-  if (role === "user") {
-    return (
-      <li className="flex max-w-[85%] flex-col items-end gap-1.5 self-end">
-        <p className="font-mono text-[11px] tracking-[0.14em] text-dim">나</p>
-        <p className="pixel-corners bg-primary px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line break-words text-primary-foreground">
-          {children}
-        </p>
-      </li>
-    )
-  }
-  return (
-    <li className="flex max-w-[94%] items-start gap-3.5 self-start">
-      <MomoAvatar size={40} />
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <p className="font-mono text-[11px] tracking-[0.14em] text-dim">MOMO</p>
-        <p className="text-[15px] leading-[1.8] whitespace-pre-line break-words md:text-base">
-          {typeOut ? <TypeOut text={children} /> : children}
-        </p>
-      </div>
-    </li>
-  )
-}
-
-// 새로 온 답을 한 글자씩. 화면 읽기 프로그램에는 전체 문장을 한 번에 알려 줍니다.
-function TypeOut({ text }: { text: string }) {
-  const [shown, setShown] = useState(0)
-  const total = Array.from(text).length
-
-  useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    const chars = Array.from(text)
-    let count = 0
-    let timer: number
-    const step = () => {
-      count = reduce ? chars.length : count + 1
-      setShown(count)
-      if (count >= chars.length) return
-      timer = window.setTimeout(step, /[.,?!\n]/.test(chars[count - 1]) ? 200 : 18)
-    }
-    timer = window.setTimeout(step, reduce ? 0 : 150)
-    return () => clearTimeout(timer)
-  }, [text])
-
-  return (
-    <>
-      <span className="sr-only">{text}</span>
-      <span aria-hidden>
-        {Array.from(text).slice(0, shown).join("")}
-        {shown < total && <span className="caret-inline" />}
-      </span>
-    </>
   )
 }

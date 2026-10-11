@@ -33,6 +33,9 @@ export type Idea = {
   createdAt: string
   // 마지막으로 다시 본 때. 적을 때·고칠 때·"다시 봤어요"를 누를 때 지금으로 바뀝니다.
   revisitedAt: string
+  // MOMO와 대화한 적이 있는지, MOMO가 쓴 문서(사업계획서 등)가 있는지
+  chatted: boolean
+  reported: boolean
 }
 
 export function isIdeaKind(value: unknown): value is IdeaKind {
@@ -52,6 +55,8 @@ type IdeaRow = {
   pinned: boolean
   created_at: string
   revisited_at: string
+  chatted_at?: string | null
+  reported_at?: string | null
 }
 
 export function toIdea(row: IdeaRow): Idea {
@@ -64,7 +69,21 @@ export function toIdea(row: IdeaRow): Idea {
     pinned: row.pinned,
     createdAt: row.created_at,
     revisitedAt: row.revisited_at,
+    chatted: Boolean(row.chatted_at),
+    reported: Boolean(row.reported_at),
   }
+}
+
+// MOMO와 나눈 대화(ideas.chat)를 읽습니다. 모양이 틀린 줄은 버립니다.
+export type ChatTurn = { role: "user" | "assistant"; content: string }
+
+export function toChat(value: unknown): ChatTurn[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((m) =>
+    m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string"
+      ? [{ role: m.role as ChatTurn["role"], content: m.content as string }]
+      : []
+  )
 }
 
 // ── 묻히지 않게 ────────────────────────────────────────────

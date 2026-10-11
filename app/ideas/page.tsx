@@ -25,7 +25,7 @@ async function IdeasContent() {
   const { supabase } = await requireUser()
   const { data, error } = await supabase
     .from("ideas")
-    .select("id, title, note, kind, status, pinned, created_at, revisited_at")
+    .select("id, title, note, kind, status, pinned, created_at, revisited_at, chatted_at, reported_at")
     .order("created_at", { ascending: false })
 
   if (error) {
