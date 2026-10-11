@@ -114,6 +114,7 @@ export type Database = {
           deadline: string | null
           description: string
           id: string
+          idea_id: string | null
           plan: Json | null
           status: string
           title: string
@@ -127,6 +128,7 @@ export type Database = {
           deadline?: string | null
           description?: string
           id?: string
+          idea_id?: string | null
           plan?: Json | null
           status?: string
           title: string
@@ -140,6 +142,7 @@ export type Database = {
           deadline?: string | null
           description?: string
           id?: string
+          idea_id?: string | null
           plan?: Json | null
           status?: string
           title?: string
@@ -147,7 +150,15 @@ export type Database = {
           user_id?: string
           weekly_minutes?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goals_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       idea_board_items: {
         Row: {
@@ -421,6 +432,7 @@ export type Database = {
           estimated_minutes: number
           goal_id: string | null
           id: string
+          idea_id: string | null
           is_done: boolean
           scheduled_at: string | null
           sort_order: number
@@ -436,6 +448,7 @@ export type Database = {
           estimated_minutes?: number
           goal_id?: string | null
           id?: string
+          idea_id?: string | null
           is_done?: boolean
           scheduled_at?: string | null
           sort_order?: number
@@ -451,6 +464,7 @@ export type Database = {
           estimated_minutes?: number
           goal_id?: string | null
           id?: string
+          idea_id?: string | null
           is_done?: boolean
           scheduled_at?: string | null
           sort_order?: number
@@ -465,6 +479,13 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
             referencedColumns: ["id"]
           },
         ]

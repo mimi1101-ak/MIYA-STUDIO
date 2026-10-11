@@ -74,6 +74,42 @@ export function toIdea(row: IdeaRow): Idea {
   }
 }
 
+// ── 할 일·목표와 연결 ──────────────────────────────────────
+// 아이디어에서 보낸 할 일(tasks.idea_id)과 아이디어로 만든 목표(goals.idea_id)
+
+export type LinkedGoal = {
+  id: string
+  title: string
+  // draft: MOMO와 계획 세우는 중, active: 진행 중, done·archived: 완료
+  status: string
+  // 목표의 할 일 중 끝낸 비율(예상 시간 합계 기준). 할 일이 없으면 null
+  percent: number | null
+}
+
+export type LinkedTask = {
+  id: string
+  title: string
+  done: boolean
+  scheduledAt: string | null
+  minutes: number
+}
+
+export type IdeaLinks = { goals: LinkedGoal[]; tasks: LinkedTask[] }
+
+export const NO_LINKS: IdeaLinks = { goals: [], tasks: [] }
+
+export const GOAL_STATUS_LABELS: Record<string, string> = {
+  draft: "MOMO와 계획 중",
+  active: "진행 중",
+  done: "완료",
+  archived: "완료",
+}
+
+// 아직 끝나지 않은 목표(계획 중·진행 중)
+export function isOpenGoal(goal: LinkedGoal): boolean {
+  return goal.status === "draft" || goal.status === "active"
+}
+
 // MOMO와 나눈 대화(ideas.chat)를 읽습니다. 모양이 틀린 줄은 버립니다.
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 

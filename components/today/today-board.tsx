@@ -179,6 +179,12 @@ function NowCard({
                   {pick.item.goalTitle}
                 </Badge>
               )}
+              {pick.item.ideaId && pick.item.ideaTitle && (
+                <Badge variant="outline" className="max-w-full" render={<Link href={`/ideas/${pick.item.ideaId}`} />}>
+                  <span className="font-mono text-[10px] tracking-[0.14em] text-dim">IDEA</span>
+                  <span className="truncate">{pick.item.ideaTitle}</span>
+                </Badge>
+              )}
               <KindBadges item={pick.item} />
             </div>
             <p className="text-2xl leading-snug font-medium tracking-tight break-words md:text-[2rem] md:leading-[1.3]">
@@ -305,6 +311,7 @@ function Timeline({
             const meta = [
               KIND_LABELS[item.kind],
               item.goalTitle,
+              item.ideaTitle ? `아이디어 ‘${item.ideaTitle}’` : null,
               item.source === "ai" ? "AI" : null,
               formatDuration(item.end - item.start),
               item.carryCount > 0 ? `${item.carryCount}번 미룸` : null,
@@ -389,6 +396,8 @@ function Timeline({
                         date: item.ymd,
                         start: item.start,
                         weekdays: [],
+                        ideaId: item.ideaId,
+                        ideaTitle: item.ideaTitle,
                       }}
                       goals={goals}
                       onClose={() => setEditingKey(null)}
@@ -457,6 +466,7 @@ function UnscheduledCard({ tasks }: { tasks: UnscheduledTask[] }) {
             <span className="font-mono text-xs text-dim">
               {formatDuration(task.minutes)}
               {task.goalTitle && ` · ${task.goalTitle}`}
+              {task.ideaTitle && ` · 아이디어 ‘${task.ideaTitle}’`}
             </span>
           </li>
         ))}

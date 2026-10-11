@@ -10,24 +10,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import type { GoalOption } from "@/lib/agenda-types"
 import {
   ageDays,
   IDEA_KINDS,
   IDEA_STATUSES,
   isBuried,
+  isOpenGoal,
   KIND_INFO,
   kstDateOf,
   quietDays,
   STATUS_LABELS,
   type Idea,
   type IdeaKind,
+  type IdeaLinks,
   type IdeaStatus,
 } from "@/lib/ideas"
 import { DOC_TYPES } from "@/lib/idea-report"
 import { cn } from "@/lib/utils"
 import { LIMITS, type ActionResult } from "@/lib/validation"
 
-import { deleteIdea, revisitIdea, sendIdeaToToday, setIdeaPinned, setIdeaStatus, updateIdea } from "./actions"
+import { deleteIdea, revisitIdea, setIdeaPinned, setIdeaStatus, updateIdea } from "./actions"
+import { IdeaLinkSummary, IdeaTaskEditor, useMakeGoal } from "./idea-links"
 
 export type Notice = { type: "ok" | "error"; text: string }
 
@@ -143,11 +147,24 @@ export function IdeaNote({ text }: { text: string }) {
   )
 }
 
-// 아이디어 카드: 종류·상태·고정, 한 줄, 자세한 내용, 적은 날·그대로 둔 날, 할 수 있는 일
-export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
+// 아이디어 카드: 종류·상태·고정, 한 줄, 자세한 내용, 연결된 목표·할 일, 적은 날·그대로 둔 날, 할 수 있는 일
+export function IdeaCard({
+  idea,
+  today,
+  links,
+  goals,
+}: {
+  idea: Idea
+  today: string
+  links: IdeaLinks
+  goals: GoalOption[]
+}) {
   const [editing, setEditing] = useState(false)
+  const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [busy, startTransition] = useTransition()
+  const { makeGoal, pending: making, error: goalError } = useMakeGoal(idea.id)
+  const pending = busy || making
 
   const age = ageDays(idea, today)
   const quiet = quietDays(idea, today)
@@ -164,7 +181,7 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
   }
 
   function handleDelete() {
-    if (!window.confirm(`'${idea.title}' 아이디어를 지울까요? 지우면 되돌릴 수 없어요.`)) return
+    if (!window.confirm(`'${idea.title}' 아이디어를 지울까요? 지우면 되돌릴 수 없어요. 이 아이디어에서 옮긴 할 일·목표는 그대로 남아요.`)) return
     run(() => deleteIdea(idea.id))
   }
 
@@ -175,6 +192,23 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
       </li>
     )
   }
+
+  if (sending) {
+    return (
+      <li className="rounded-xl bg-card p-4 ring-1 ring-foreground/25 sm:col-span-2">
+        <IdeaTaskEditor
+          idea={idea}
+          links={links}
+          goals={goals}
+          onClose={() => setSending(false)}
+          onSaved={(text) => setNotice({ type: "ok", text })}
+        />
+      </li>
+    )
+  }
+
+  const open = idea.status !== "done"
+  const shownNotice = goalError ? { type: "error" as const, text: goalError } : notice
 
   return (
     <li
@@ -217,6 +251,7 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
       </Link>
       {idea.note && <IdeaNote text={idea.note} />}
       <MomoLink idea={idea} />
+      <IdeaLinkSummary idea={idea} links={links} />
 
       <p className="mt-auto flex flex-wrap justify-between gap-x-3 gap-y-0.5 font-mono text-[11px] text-dim tabular-nums">
         <span>
@@ -228,12 +263,12 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
         )}
       </p>
 
-      {notice && (
+      {shownNotice && (
         <p
-          role={notice.type === "error" ? "alert" : "status"}
-          className={cn("text-xs", notice.type === "error" ? "text-destructive" : "text-foreground/85")}
+          role={shownNotice.type === "error" ? "alert" : "status"}
+          className={cn("text-xs", shownNotice.type === "error" ? "text-destructive" : "text-foreground/85")}
         >
-          {notice.text}
+          {shownNotice.text}
         </p>
       )}
 
@@ -255,9 +290,24 @@ export function IdeaCard({ idea, today }: { idea: Idea; today: string }) {
         >
           {next.label}
         </Button>
-        {idea.kind === "todo" && idea.status !== "done" && (
-          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => run(() => sendIdeaToToday(idea.id))}>
+        {open && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() => {
+              setNotice(null)
+              setSending(true)
+            }}
+          >
             할 일로 보내기
+          </Button>
+        )}
+        {/* 이미 이 아이디어로 만든 목표가 진행 중이면 위 요약에서 그 목표로 갑니다(하나 더 만들기는 아이디어 화면에서). */}
+        {open && !links.goals.some(isOpenGoal) && (
+          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={makeGoal}>
+            {making ? "목표 만드는 중…" : "목표로 만들기"}
           </Button>
         )}
         <Button

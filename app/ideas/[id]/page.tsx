@@ -3,12 +3,15 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import { LoadingBlock, PageShell } from "@/components/page-shell"
+import { loadGoalOptions } from "@/lib/agenda"
 import { requireUser } from "@/lib/auth"
 import { todayKST } from "@/lib/date"
+import { loadIdeaLinks } from "@/lib/idea-links"
 import { normalizeIdeaReport } from "@/lib/idea-report"
-import { toChat, toIdea } from "@/lib/ideas"
+import { NO_LINKS, toChat, toIdea } from "@/lib/ideas"
 import { isUuid } from "@/lib/validation"
 
+import { IdeaLinksPanel } from "../idea-links"
 import { IdeaHeader } from "./idea-header"
 import { IdeaTabs } from "./idea-tabs"
 import { IdeaWorkspace } from "./idea-workspace"
@@ -16,7 +19,7 @@ import { IdeaWorkspace } from "./idea-workspace"
 // MOMO가 사업계획서를 쓰는 데 1~2분 걸리므로, 이 화면의 서버 기능은 최대 5분까지 기다립니다.
 export const maxDuration = 300
 
-// 아이디어 하나: 머리(내용·상태) → MOMO와 대화 + MOMO가 쓴 문서(사업계획서·기획서·실행 계획서)
+// 아이디어 하나: 머리(내용·상태) → 할 일·목표 연결 → MOMO와 대화 + MOMO가 쓴 문서(사업계획서·기획서·실행 계획서)
 export default function IdeaPage({ params }: PageProps<"/ideas/[id]">) {
   return (
     <PageShell>
@@ -35,17 +38,22 @@ async function IdeaContent({ params }: { params: Promise<{ id: string }> }) {
   if (!isUuid(id)) notFound()
   const { supabase } = await requireUser()
 
-  const { data } = await supabase
-    .from("ideas")
-    .select("id, title, note, kind, status, pinned, created_at, revisited_at, chatted_at, reported_at, chat, report")
-    .eq("id", id)
-    .maybeSingle()
+  const [{ data }, links, goals] = await Promise.all([
+    supabase
+      .from("ideas")
+      .select("id, title, note, kind, status, pinned, created_at, revisited_at, chatted_at, reported_at, chat, report")
+      .eq("id", id)
+      .maybeSingle(),
+    loadIdeaLinks(supabase, id),
+    loadGoalOptions(supabase),
+  ])
   if (!data) notFound()
 
   const idea = toIdea(data)
   return (
     <div className="flex flex-col gap-6">
       <IdeaHeader idea={idea} today={todayKST()} />
+      <IdeaLinksPanel idea={idea} links={links?.[idea.id] ?? NO_LINKS} goals={goals ?? []} />
       {idea.kind === "business" && <IdeaTabs ideaId={idea.id} active="consult" />}
       <IdeaWorkspace
         idea={idea}

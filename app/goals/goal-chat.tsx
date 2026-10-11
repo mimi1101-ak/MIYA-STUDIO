@@ -15,8 +15,28 @@ import { sendGoalMessage } from "./actions"
 
 const EXAMPLES = ["12월까지 전자책 5권 쓰기", "3달 안에 토익 900점", "이번 달에 포트폴리오 사이트 완성"]
 
-// MOMO와 목표를 정하는 대화창
-export function GoalChat({ goalId, messages }: { goalId: string | null; messages: ChatMessage[] }) {
+// 아이디어로 만든 목표에서 처음 말 걸기. 누르면 바로 보냅니다.
+const IDEA_STARTERS = ["이 아이디어로 목표와 계획을 세워 주세요", "무엇부터 정하면 될까요?"]
+
+const OPENER =
+  "어떤 목표를 이루고 싶으세요? 대충 말해 주셔도 돼요.\n필요한 것만 몇 가지 여쭤본 뒤, 월 → 주 → 일 단위로 할 일을 쪼갠 계획안을 보여 드릴게요."
+
+// 아이디어로 만든 목표의 첫인사 (AI를 부르지 않는 고정 문구)
+function ideaOpener(idea: { title: string; docType: string | null }) {
+  const read = idea.docType ? `아이디어 메모와 제가 쓴 ${idea.docType}` : "아이디어 메모"
+  return `‘${idea.title}’ 아이디어를 목표로 만들어 볼까요?\n${read}를 읽어 두었어요. 마감일과 쓸 수 있는 시간처럼 꼭 필요한 것만 여쭤본 뒤, 월 → 주 → 일 단위 계획안을 보여 드릴게요.`
+}
+
+// MOMO와 목표를 정하는 대화창. idea: 아이디어로 만든 목표면 그 아이디어(제목, MOMO가 쓴 문서 이름)
+export function GoalChat({
+  goalId,
+  messages,
+  idea = null,
+}: {
+  goalId: string | null
+  messages: ChatMessage[]
+  idea?: { title: string; docType: string | null } | null
+}) {
   const router = useRouter()
   const [text, setText] = useState("")
   const [sending, setSending] = useState<string | null>(null)
@@ -68,9 +88,7 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
       <SectionLabel code="CHANNEL">MOMO와 대화</SectionLabel>
 
       <ol className="flex flex-col gap-6" aria-live="polite">
-        <ChatBubble role="assistant">
-          {"어떤 목표를 이루고 싶으세요? 대충 말해 주셔도 돼요.\n필요한 것만 몇 가지 여쭤본 뒤, 월 → 주 → 일 단위로 할 일을 쪼갠 계획안을 보여 드릴게요."}
-        </ChatBubble>
+        <ChatBubble role="assistant">{idea ? ideaOpener(idea) : OPENER}</ChatBubble>
         {shown.map((m, i) => (
           <ChatBubble key={i} role={m.role} typeOut={m.role === "assistant" && i >= firstUnseen}>
             {m.content}
@@ -80,7 +98,25 @@ export function GoalChat({ goalId, messages }: { goalId: string | null; messages
       </ol>
       <div ref={endRef} />
 
-      {messages.length === 0 && !pending && (
+      {messages.length === 0 && !pending && idea && (
+        <div className="flex flex-col gap-2.5">
+          <p className="font-mono text-[11px] tracking-[0.14em] text-dim">이렇게 시작해 보세요 · 누르면 바로 보내요</p>
+          <div className="flex flex-wrap gap-2">
+            {IDEA_STARTERS.map((starter) => (
+              <button
+                key={starter}
+                type="button"
+                onClick={() => send(starter)}
+                className="h-10 border border-dashed border-foreground/30 px-4 text-sm transition-colors hover:border-solid hover:border-foreground hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              >
+                {starter}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {messages.length === 0 && !pending && !idea && (
         <div className="flex flex-col gap-2.5">
           <p className="font-mono text-[11px] tracking-[0.14em] text-dim">예시 · 누르면 입력 칸에 채워져요</p>
           <div className="flex flex-wrap gap-2">

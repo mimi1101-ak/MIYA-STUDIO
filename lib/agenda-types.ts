@@ -20,6 +20,9 @@ export type AgendaItem = {
   done: boolean
   goalId: string | null
   goalTitle: string | null
+  // 아이디어에서 보낸 할 일이면 그 아이디어
+  ideaId: string | null
+  ideaTitle: string | null
   source: "manual" | "ai" | null
   carryCount: number
 }
@@ -29,6 +32,7 @@ export type UnscheduledTask = {
   title: string
   minutes: number
   goalTitle: string | null
+  ideaTitle: string | null
   source: "manual" | "ai"
 }
 

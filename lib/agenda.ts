@@ -29,7 +29,7 @@ export async function loadAgenda(
   const [tasks, events, routines, checks, goals] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id, title, is_done, scheduled_at, estimated_minutes, goal_id, source, carry_count")
+      .select("id, title, is_done, scheduled_at, estimated_minutes, goal_id, idea_id, source, carry_count, idea:ideas(title)")
       .gte("scheduled_at", fromIso)
       .lt("scheduled_at", toIso),
     supabase
@@ -64,6 +64,8 @@ export async function loadAgenda(
       done: t.is_done,
       goalId: t.goal_id,
       goalTitle: t.goal_id ? (goalTitles.get(t.goal_id) ?? null) : null,
+      ideaId: t.idea_id,
+      ideaTitle: t.idea?.title ?? null,
       source: asSource(t.source),
       carryCount: t.carry_count,
     })
@@ -88,6 +90,8 @@ export async function loadAgenda(
         done: false,
         goalId: null,
         goalTitle: null,
+        ideaId: null,
+        ideaTitle: null,
         source: null,
         carryCount: 0,
       })
@@ -111,6 +115,8 @@ export async function loadAgenda(
         done: checked.has(`${r.id}:${ymd}`),
         goalId: null,
         goalTitle: null,
+        ideaId: null,
+        ideaTitle: null,
         source: null,
         carryCount: 0,
       })
@@ -135,7 +141,7 @@ export async function loadUnscheduled(supabase: Supabase): Promise<UnscheduledTa
   const [tasks, goals] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id, title, estimated_minutes, goal_id, source")
+      .select("id, title, estimated_minutes, goal_id, source, idea:ideas(title)")
       .eq("is_done", false)
       .is("scheduled_at", null)
       .order("sort_order", { ascending: true })
@@ -149,6 +155,7 @@ export async function loadUnscheduled(supabase: Supabase): Promise<UnscheduledTa
     title: t.title,
     minutes: t.estimated_minutes,
     goalTitle: t.goal_id ? (goalTitles.get(t.goal_id) ?? null) : null,
+    ideaTitle: t.idea?.title ?? null,
     source: asSource(t.source),
   }))
 }

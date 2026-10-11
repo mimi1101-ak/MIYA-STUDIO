@@ -13,6 +13,7 @@ import {
   planTasks,
   type ChatMessage,
 } from "@/lib/goal-ai"
+import { ideaBriefForGoal } from "@/lib/idea-links"
 import { computePlacements, loadWorkHours } from "@/lib/schedule-db"
 import { cleanText, isUuid, LIMITS, type ActionResult } from "@/lib/validation"
 
@@ -42,11 +43,14 @@ export async function sendGoalMessage(
   let id = goalId
   let chat: ChatMessage[] = []
   let currentPlan: unknown = null
+  let ideaBrief: string | null = null
   if (id) {
-    const { data } = await supabase.from("goals").select("chat, plan").eq("id", id).maybeSingle()
+    const { data } = await supabase.from("goals").select("chat, plan, idea_id").eq("id", id).maybeSingle()
     if (!data) return BAD_REQUEST
     chat = toChat(data.chat)
     currentPlan = data.plan
+    // 아이디어로 만든 목표면 MOMO가 아이디어 메모와 문서를 읽고 계획을 세웁니다.
+    if (data.idea_id) ideaBrief = await ideaBriefForGoal(supabase, data.idea_id)
   } else {
     const { data, error } = await supabase
       .from("goals")
@@ -63,7 +67,7 @@ export async function sendGoalMessage(
   let turn
   try {
     const work = await loadWorkHours(supabase, userId)
-    turn = await askGoalAssistant(history, today, work, normalizePlan(currentPlan, null))
+    turn = await askGoalAssistant(history, today, work, normalizePlan(currentPlan, null), ideaBrief)
   } catch (error) {
     // 보낸 말은 남겨 두고, 다시 보내면 이어서 답하게 합니다.
     await supabase.from("goals").update({ chat: history }).eq("id", id)
@@ -143,11 +147,29 @@ export async function approvePlan(goalId: string): Promise<ActionResult> {
   }
 }
 
-export async function setGoalStatus(goalId: string, status: "active" | "done"): Promise<ActionResult> {
-  if (!isUuid(goalId) || (status !== "active" && status !== "done")) return BAD_REQUEST
+// alsoIdea: 목표를 완료할 때 이 목표를 만든 아이디어도 '끝냄'으로 바꿀지 (사용자가 고름)
+export async function setGoalStatus(
+  goalId: string,
+  status: "active" | "done",
+  alsoIdea = false
+): Promise<ActionResult> {
+  if (!isUuid(goalId) || (status !== "active" && status !== "done") || typeof alsoIdea !== "boolean") return BAD_REQUEST
   const { supabase, userId } = await requireUser()
-  const { error } = await supabase.from("goals").update({ status }).eq("id", goalId).eq("user_id", userId)
+  const { data, error } = await supabase
+    .from("goals")
+    .update({ status })
+    .eq("id", goalId)
+    .eq("user_id", userId)
+    .select("idea_id")
+    .maybeSingle()
   if (error) return SAVE_ERROR
+  if (status === "done" && alsoIdea && data?.idea_id) {
+    await supabase
+      .from("ideas")
+      .update({ status: "done", revisited_at: new Date().toISOString() })
+      .eq("id", data.idea_id)
+      .eq("user_id", userId)
+  }
   refresh()
   return { ok: true }
 }

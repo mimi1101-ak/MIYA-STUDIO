@@ -9,6 +9,7 @@ import { CornerFrame, SectionLabel } from "@/components/space-ui"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import type { GoalOption } from "@/lib/agenda-types"
 import {
   ageDays,
   buriedIdeas,
@@ -20,7 +21,9 @@ import {
   RECALL_COUNT,
   SORT_LABELS,
   sortIdeas,
+  NO_LINKS,
   type Idea,
+  type IdeaLinks,
   type IdeaKind,
   type IdeaSort,
 } from "@/lib/ideas"
@@ -41,13 +44,20 @@ import {
   type Notice,
 } from "./idea-card"
 
+type Linking = {
+  // 아이디어별로 연결된 목표·할 일
+  links: Record<string, IdeaLinks>
+  // 할 일을 연결할 수 있는 진행 중 목표
+  goals: GoalOption[]
+}
+
 // 아이디어 화면: 새 아이디어 적기 → 다시 꺼낸 아이디어(오래 묻힌 것) → 모든 아이디어
-export function IdeaBoard({ ideas, today }: { ideas: Idea[]; today: string }) {
+export function IdeaBoard({ ideas, today, links, goals }: { ideas: Idea[]; today: string } & Linking) {
   return (
     <div className="flex flex-col gap-6 md:gap-8">
       <Capture ideas={ideas} />
       <RecallPanel ideas={ideas} today={today} />
-      <IdeaList ideas={ideas} today={today} />
+      <IdeaList ideas={ideas} today={today} links={links} goals={goals} />
     </div>
   )
 }
@@ -270,7 +280,7 @@ function RecallPanel({ ideas, today }: { ideas: Idea[]; today: string }) {
 // ── 모든 아이디어 ───────────────────────────────────────────
 // 페이지를 나누지 않고 전부 보여 줍니다. 기본은 '오래 안 본 순'이라 묻힌 아이디어가 위에 옵니다.
 
-function IdeaList({ ideas, today }: { ideas: Idea[]; today: string }) {
+function IdeaList({ ideas, today, links, goals }: { ideas: Idea[]; today: string } & Linking) {
   const [query, setQuery] = useState("")
   const [kind, setKind] = useState<IdeaKind | "all">("all")
   const [sort, setSort] = useState<IdeaSort>("quiet")
@@ -353,7 +363,7 @@ function IdeaList({ ideas, today }: { ideas: Idea[]; today: string }) {
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {live.map((idea) => (
-                <IdeaCard key={idea.id} idea={idea} today={today} />
+                <IdeaCard key={idea.id} idea={idea} today={today} links={links[idea.id] ?? NO_LINKS} goals={goals} />
               ))}
             </ul>
           )}
@@ -372,7 +382,7 @@ function IdeaList({ ideas, today }: { ideas: Idea[]; today: string }) {
               {showDone && (
                 <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {done.map((idea) => (
-                    <IdeaCard key={idea.id} idea={idea} today={today} />
+                    <IdeaCard key={idea.id} idea={idea} today={today} links={links[idea.id] ?? NO_LINKS} goals={goals} />
                   ))}
                 </ul>
               )}

@@ -4,8 +4,8 @@ import { refresh } from "next/cache"
 
 import { requireUser } from "@/lib/auth"
 import { BOARD_BUCKET } from "@/lib/idea-board"
+import { markIdeaInProgress } from "@/lib/idea-links"
 import { isIdeaKind, isIdeaStatus, type IdeaKind, type IdeaStatus } from "@/lib/ideas"
-import { quickAdd } from "@/lib/schedule-actions"
 import { cleanText, isUuid, LIMITS, type ActionResult } from "@/lib/validation"
 
 export type IdeaInput = { title: string; note: string; kind: IdeaKind }
@@ -120,24 +120,35 @@ export async function deleteIdea(id: string): Promise<ActionResult> {
   return { ok: true }
 }
 
-// '할 일' 아이디어를 "오늘" 화면의 할 일로 보냅니다. 빠른 입력과 같은 규칙으로 빈 시간에 들어가고,
-// 아이디어는 '진행 중'으로 바뀝니다(지우지 않음).
-export async function sendIdeaToToday(id: string): Promise<ActionResult> {
+// 아이디어로 목표 만들기: 아이디어 내용으로 'MOMO와 대화 중' 목표를 만듭니다. 화면은 돌려준 목표 화면으로 옮겨 MOMO와 계획을 세웁니다.
+// MOMO는 아이디어 메모와 MOMO가 쓴 문서를 읽고 계획을 세웁니다(lib/idea-links.ts의 ideaBriefForGoal).
+// 아직 MOMO와 말을 나누지 않은 목표가 이미 있으면 새로 만들지 않고 그 목표로 갑니다(빈 목표가 쌓이지 않게).
+export async function createGoalFromIdea(id: string): Promise<ActionResult & { goalId?: string }> {
   if (!isUuid(id)) return BAD_REQUEST
   const { supabase, userId } = await requireUser()
 
-  const { data: idea } = await supabase.from("ideas").select("title, status").eq("id", id).maybeSingle()
-  if (!idea || idea.status === "done") return BAD_REQUEST
+  const { data: idea } = await supabase.from("ideas").select("title, note").eq("id", id).maybeSingle()
+  if (!idea) return BAD_REQUEST
 
-  const result = await quickAdd(idea.title, "task")
-  if (!result.ok) return result
-
-  await supabase
-    .from("ideas")
-    .update({ status: "doing", revisited_at: now() })
-    .eq("id", id)
-    .eq("user_id", userId)
+  const { data: drafts } = await supabase.from("goals").select("id, chat").eq("idea_id", id).eq("status", "draft")
+  let goalId = drafts?.find((g) => Array.isArray(g.chat) && g.chat.length === 0)?.id
+  if (!goalId) {
+    const { data, error } = await supabase
+      .from("goals")
+      .insert({
+        user_id: userId,
+        idea_id: id,
+        title: idea.title.slice(0, LIMITS.goalTitle),
+        description: idea.note.slice(0, LIMITS.goalDescription),
+        status: "draft",
+      })
+      .select("id")
+      .single()
+    if (error || !data) return SAVE_ERROR
+    goalId = data.id
+  }
+  await markIdeaInProgress(supabase, userId, id)
 
   refresh()
-  return { ok: true, message: `할 일로 보냈어요. ${result.message ?? ""}`.trim() }
+  return { ok: true, goalId }
 }

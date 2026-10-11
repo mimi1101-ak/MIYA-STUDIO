@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useId, useState, useTransition, type FormEvent } from "react"
 
 import { WeekdayPicker } from "@/components/weekday-picker"
@@ -33,6 +34,9 @@ export type EditorValue = {
   date: string | null
   start: number | null
   weekdays: number[]
+  // 아이디어에서 보낸(보내는) 할 일이면 그 아이디어
+  ideaId?: string | null
+  ideaTitle?: string | null
 }
 
 export function newEditorValue(kind: ItemKind, date: string | null, start: number | null): EditorValue {
@@ -57,12 +61,14 @@ export function ItemEditor({
   value,
   goals,
   allowKindChange = false,
+  submitLabel,
   onClose,
   onSaved,
 }: {
   value: EditorValue
   goals: GoalOption[]
   allowKindChange?: boolean
+  submitLabel?: string
   onClose: () => void
   onSaved?: (message?: string) => void
 }) {
@@ -100,7 +106,7 @@ export function ItemEditor({
 
     if (kind === "task") {
       if (start !== null && !date) return setError("시각을 정하려면 날짜도 골라 주세요.")
-      const input = { title: cleanTitle, minutes, goalId: goalId || null, date: date || null, start }
+      const input = { title: cleanTitle, minutes, goalId: goalId || null, date: date || null, start, ideaId: value.ideaId ?? null }
       return run(() => (id ? updateTask(id, input) : addTask(input)))
     }
     if (start === null) return setError("시작 시각을 골라 주세요.")
@@ -219,6 +225,17 @@ export function ItemEditor({
         </p>
       )}
 
+      {!isNew && value.ideaId && value.ideaTitle && (
+        <Link
+          href={`/ideas/${value.ideaId}`}
+          className="flex min-w-0 items-center gap-1.5 self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <span className="shrink-0 font-mono tracking-[0.14em] text-dim">IDEA</span>
+          <span className="truncate">아이디어 ‘{value.ideaTitle}’에서 온 할 일</span>
+          <span aria-hidden className="font-mono text-dim">›</span>
+        </Link>
+      )}
+
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -227,7 +244,7 @@ export function ItemEditor({
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "저장 중…" : isNew ? "추가" : "저장"}
+          {pending ? "저장 중…" : isNew ? (submitLabel ?? "추가") : "저장"}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onClose} disabled={pending}>
           취소

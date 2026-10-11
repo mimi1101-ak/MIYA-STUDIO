@@ -7,6 +7,7 @@ import { refresh } from "next/cache"
 import { requireUser } from "@/lib/auth"
 import { formatClock, formatDayLabel, kstToIso, kstToMs, msToKst } from "@/lib/date"
 import { aiErrorMessage, splitTaskWithAi } from "@/lib/goal-ai"
+import { markIdeaInProgress } from "@/lib/idea-links"
 import { planQuickInput } from "@/lib/quick-parse"
 import {
   computePlacements,
@@ -45,12 +46,15 @@ export type TaskInput = {
   // 날짜·시각을 모두 주면 그 시각에 고정, 날짜만 주면 그날 이후 빈 시간, 둘 다 없으면 지금 이후 빈 시간
   date: string | null
   start: number | null
+  // 아이디어에서 보내는 할 일이면 그 아이디어 (새로 만들 때만 씀, 고칠 때는 연결을 그대로 둠)
+  ideaId?: string | null
 }
 
 function checkTaskInput(input: TaskInput): TaskInput | null {
   const title = checkTitle(input?.title)
   if (!title || !isDuration(input.minutes)) return null
   if (input.goalId !== null && !isUuid(input.goalId)) return null
+  if (input.ideaId != null && !isUuid(input.ideaId)) return null
   if (input.date !== null && !isValidDate(input.date)) return null
   if (input.start !== null && (!isMinuteOfDay(input.start) || input.date === null)) return null
   return { ...input, title }
@@ -95,10 +99,12 @@ export async function addTask(input: TaskInput): Promise<ActionResult> {
     title: checked.title,
     estimated_minutes: checked.minutes,
     goal_id: checked.goalId,
+    idea_id: checked.ideaId ?? null,
     scheduled_at: scheduledAt,
     source: "manual",
   })
   if (error) return SAVE_ERROR
+  if (checked.ideaId) await markIdeaInProgress(supabase, userId, checked.ideaId)
 
   refresh()
   return { ok: true, message: placedMessage(scheduledAt) }
@@ -384,10 +390,16 @@ export async function moveItem(
 // ── 빠른 입력 ────────────────────────────────────────────
 
 // 한 줄 입력을 해석해 일정 또는 할 일로 저장합니다. kind를 주면 그 종류로 저장합니다.
-export async function quickAdd(text: string, kind: "task" | "event" | null): Promise<ActionResult> {
+// ideaId를 주면 그 아이디어에서 보낸 할 일로 연결합니다(아이디어 문서의 "할 일로 넣기").
+export async function quickAdd(
+  text: string,
+  kind: "task" | "event" | null,
+  ideaId: string | null = null
+): Promise<ActionResult> {
   const raw = cleanText(text)
   if (!raw || raw.length > LIMITS.taskTitle) return { ok: false, error: "내용을 입력해 주세요." }
   if (kind !== null && kind !== "task" && kind !== "event") return BAD_REQUEST
+  if (ideaId !== null && !isUuid(ideaId)) return BAD_REQUEST
 
   const now = msToKst(Date.now())
   const plan = planQuickInput(raw, now.ymd, now.minutes, kind)
@@ -396,7 +408,7 @@ export async function quickAdd(text: string, kind: "task" | "event" | null): Pro
   if (plan.kind === "event") {
     return addEvent({ title: plan.title, date: plan.date!, start: plan.start!, minutes: plan.minutes })
   }
-  return addTask({ title: plan.title, minutes: plan.minutes, goalId: null, date: plan.date, start: plan.start })
+  return addTask({ title: plan.title, minutes: plan.minutes, goalId: null, date: plan.date, start: plan.start, ideaId })
 }
 
 // ── 자주 미룬 할 일 쪼개기 (AI) ──────────────────────────────
@@ -408,7 +420,7 @@ export async function splitTask(id: string): Promise<ActionResult> {
 
   const { data: task } = await supabase
     .from("tasks")
-    .select("id, title, estimated_minutes, goal_id, is_done")
+    .select("id, title, estimated_minutes, goal_id, idea_id, is_done")
     .eq("id", id)
     .maybeSingle()
   if (!task || task.is_done) return BAD_REQUEST
@@ -441,6 +453,7 @@ export async function splitTask(id: string): Promise<ActionResult> {
       return {
         user_id: userId,
         goal_id: task.goal_id,
+        idea_id: task.idea_id,
         title: p.title,
         estimated_minutes: p.minutes,
         scheduled_at: start === null ? null : new Date(start).toISOString(),

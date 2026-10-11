@@ -28,18 +28,21 @@ export default function GoalsPage() {
 
 async function GoalList() {
   const { supabase } = await requireUser()
-  const [goals, progress] = await Promise.all([
+  const [goals, progress, ideas] = await Promise.all([
     supabase
       .from("goals")
-      .select("id, title, status, deadline, weekly_minutes, updated_at")
+      .select("id, title, status, deadline, weekly_minutes, updated_at, idea_id")
       .order("updated_at", { ascending: false }),
     loadGoalProgress(supabase, weekStartKST()),
+    supabase.from("ideas").select("id, title"),
   ])
   if (goals.error || !progress) {
     return <p className="text-sm text-destructive">목표를 불러오지 못했어요. 새로고침해 주세요.</p>
   }
 
   const byId = new Map(progress.map((p) => [p.id, p]))
+  // 아이디어로 만든 목표면 그 아이디어 이름
+  const ideaTitles = new Map((ideas.data ?? []).map((i) => [i.id, i.title]))
   const groups = [
     { title: "진행 중", items: goals.data.filter((g) => g.status === "active") },
     { title: "MOMO와 대화 중", items: goals.data.filter((g) => g.status === "draft") },
@@ -61,6 +64,7 @@ async function GoalList() {
               {group.items.map((goal) => {
                 const p = byId.get(goal.id)
                 const done = p ? percent(p.done, p.total) : 0
+                const ideaTitle = goal.idea_id ? ideaTitles.get(goal.idea_id) : undefined
                 return (
                   <li key={goal.id}>
                     <Link
@@ -68,6 +72,12 @@ async function GoalList() {
                       className="flex h-full flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10 transition-colors hover:bg-muted/60 hover:ring-foreground/25"
                     >
                       <span className="text-[15px] font-medium break-words">{goal.title}</span>
+                      {ideaTitle && (
+                        <span className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
+                          <span className="shrink-0 font-mono text-[10px] tracking-[0.14em] text-dim">FROM IDEA</span>
+                          <span className="truncate">{ideaTitle}</span>
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground">
                         {goal.deadline ? `마감 ${formatDayLabel(goal.deadline)}` : "마감 미정"}
                         {goal.weekly_minutes ? ` · 주 ${formatDuration(goal.weekly_minutes)}` : ""}

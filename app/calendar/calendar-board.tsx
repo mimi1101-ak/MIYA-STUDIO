@@ -149,6 +149,8 @@ export function CalendarBoard(props: Props) {
         date: item.ymd,
         start: item.start,
         weekdays: [],
+        ideaId: item.ideaId,
+        ideaTitle: item.ideaTitle,
       },
     })
   }

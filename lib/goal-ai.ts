@@ -161,11 +161,13 @@ function contextBlock(today: string, work: WorkHours, currentPlan: GoalPlan | nu
   return lines.join("\n")
 }
 
+// ideaBrief: 아이디어로 만든 목표면 그 아이디어 요약(메모·MOMO가 쓴 문서). 대화 내내 같아서 시스템 지시 뒤에 붙입니다(캐시 유지).
 export async function askGoalAssistant(
   history: ChatMessage[],
   today: string,
   work: WorkHours,
-  currentPlan: GoalPlan | null
+  currentPlan: GoalPlan | null,
+  ideaBrief: string | null = null
 ): Promise<AssistantTurn> {
   const client = createAiClient()
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m, i) =>
@@ -183,7 +185,12 @@ export async function askGoalAssistant(
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     cache_control: { type: "ephemeral" },
-    system: SYSTEM_PROMPT,
+    system: ideaBrief
+      ? [
+          { type: "text", text: SYSTEM_PROMPT },
+          { type: "text", text: ideaBrief },
+        ]
+      : SYSTEM_PROMPT,
     messages,
   })
   const response = await stream.finalMessage()

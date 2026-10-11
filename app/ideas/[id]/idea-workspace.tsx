@@ -189,6 +189,7 @@ export function IdeaWorkspace({ idea, messages, report, reportedAt }: Props) {
         ) : report ? (
           <ReportDocument
             report={report}
+            ideaId={idea.id}
             kind={idea.kind}
             ideaTitle={idea.title}
             date={reportedAt ? stampOf(reportedAt) : "-"}

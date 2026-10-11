@@ -33,7 +33,7 @@ export function IdeaHeader({ idea, today }: { idea: Idea; today: string }) {
   }
 
   function handleDelete() {
-    if (!window.confirm(`'${idea.title}' 아이디어를 지울까요? MOMO와 나눈 대화·문서·대시보드 사진도 함께 지워지고, 되돌릴 수 없어요.`)) return
+    if (!window.confirm(`'${idea.title}' 아이디어를 지울까요? MOMO와 나눈 대화·문서·대시보드 사진도 함께 지워지고, 되돌릴 수 없어요. 이 아이디어에서 옮긴 할 일·목표는 그대로 남아요.`)) return
     run(
       () => deleteIdea(idea.id),
       () => router.push("/ideas")

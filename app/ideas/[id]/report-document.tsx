@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, Sparkles } from "lucide-react"
+import { Check, Copy, Sparkles, Target } from "lucide-react"
 import { useState, useTransition, type ReactNode } from "react"
 
 import { MomoAvatar } from "@/components/momo-avatar"
@@ -10,6 +10,8 @@ import { DOC_TYPES, reportToText, sectionTitles, type IdeaReport } from "@/lib/i
 import type { IdeaKind } from "@/lib/ideas"
 import { quickAdd } from "@/lib/schedule-actions"
 import { cn } from "@/lib/utils"
+
+import { useMakeGoal } from "../idea-links"
 
 const CIRCLED = ["①", "②", "③", "④", "⑤"]
 
@@ -33,6 +35,7 @@ const paragraph = "text-sm leading-7 whitespace-pre-line break-words"
 // MOMO가 대화를 바탕으로 쓴 문서. 내용이 없는 섹션은 빼고 번호를 차례로 매깁니다.
 export function ReportDocument({
   report,
+  ideaId,
   kind,
   ideaTitle,
   date,
@@ -40,6 +43,7 @@ export function ReportDocument({
   onRewrite,
 }: {
   report: IdeaReport
+  ideaId: string
   kind: IdeaKind
   ideaTitle: string
   date: string
@@ -49,6 +53,7 @@ export function ReportDocument({
   const docType = DOC_TYPES[kind]
   const t = sectionTitles(kind)
   const [copied, setCopied] = useState(false)
+  const { makeGoal, pending: making, error: goalError } = useMakeGoal(ideaId)
 
   async function copy() {
     const value = reportToText(report, kind, date)
@@ -117,10 +122,7 @@ export function ReportDocument({
               {phase.actions.length > 0 && (
                 <ul className="mt-1.5 flex flex-col gap-1 text-sm leading-6">
                   {phase.actions.map((action, j) => (
-                    <li key={j} className="grid grid-cols-[1rem_minmax(0,1fr)]">
-                      <span aria-hidden>·</span>
-                      <span>{action}</span>
-                    </li>
+                    <RoadmapAction key={`${j}-${action}`} action={action} ideaId={ideaId} />
                   ))}
                 </ul>
               )}
@@ -166,7 +168,7 @@ export function ReportDocument({
       content: (
         <ol className="flex flex-col gap-2">
           {report.nextSteps.map((step, i) => (
-            <NextStep key={`${i}-${step}`} number={i + 1} step={step} />
+            <NextStep key={`${i}-${step}`} number={i + 1} step={step} ideaId={ideaId} />
           ))}
         </ol>
       ),
@@ -215,6 +217,15 @@ export function ReportDocument({
       </p>
 
       <div className="mt-4 flex flex-wrap items-center justify-end gap-1 border-t pt-3">
+        {goalError && (
+          <p role="alert" className="mr-auto text-xs text-destructive">
+            {goalError}
+          </p>
+        )}
+        <Button type="button" size="sm" variant="ghost" className="text-muted-foreground" disabled={busy || making} onClick={makeGoal}>
+          <Target data-icon="inline-start" />
+          {making ? "목표 만드는 중…" : "이 문서로 목표 세우기"}
+        </Button>
         <Button type="button" size="sm" variant="ghost" className="text-muted-foreground" disabled={busy} onClick={onRewrite}>
           <Sparkles data-icon="inline-start" />
           대화 반영해 다시 쓰기
@@ -241,18 +252,63 @@ function Table({ rows }: { rows: [string, string][] }) {
   )
 }
 
-// 이번 주 첫 행동 하나. "할 일로 넣기"를 누르면 빠른 입력과 같은 규칙으로 빈 시간에 들어갑니다.
-function NextStep({ number, step }: { number: number; step: string }) {
+// 문서의 한 줄을 할 일로 넣기: 빠른 입력과 같은 규칙으로 빈 시간에 들어가고, 이 아이디어에서 보낸 할 일로 연결됩니다.
+function useSendTask(text: string, ideaId: string) {
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
 
   function send() {
     setResult(null)
     startTransition(async () => {
-      const res = await quickAdd(step, "task")
+      const res = await quickAdd(text, "task", ideaId)
       setResult(res.ok ? { ok: true, text: `할 일로 넣었어요. ${res.message ?? ""}`.trim() } : { ok: false, text: res.error })
     })
   }
+  return { send, pending, result }
+}
+
+// 로드맵의 행동 하나. 오른쪽 "+ 할 일"로 바로 할 일에 넣습니다.
+function RoadmapAction({ action, ideaId }: { action: string; ideaId: string }) {
+  const { send, pending, result } = useSendTask(action, ideaId)
+  return (
+    <li className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-1">
+      <span aria-hidden>·</span>
+      <span>{action}</span>
+      <Button
+        type="button"
+        size="xs"
+        variant="ghost"
+        className="text-muted-foreground"
+        disabled={pending || result?.ok}
+        onClick={send}
+        aria-label={`'${action}' 할 일로 넣기`}
+      >
+        {result?.ok ? (
+          <>
+            <Check data-icon="inline-start" />
+            넣었어요
+          </>
+        ) : pending ? (
+          "넣는 중…"
+        ) : (
+          "+ 할 일"
+        )}
+      </Button>
+      {result && (
+        <p
+          role={result.ok ? "status" : "alert"}
+          className={cn("col-span-2 col-start-2 text-xs", result.ok ? "text-muted-foreground" : "text-destructive")}
+        >
+          {result.text}
+        </p>
+      )}
+    </li>
+  )
+}
+
+// 이번 주 첫 행동 하나. "할 일로 넣기"를 누르면 빠른 입력과 같은 규칙으로 빈 시간에 들어갑니다.
+function NextStep({ number, step, ideaId }: { number: number; step: string; ideaId: string }) {
+  const { send, pending, result } = useSendTask(step, ideaId)
 
   return (
     <li className="flex flex-col gap-1.5 border border-foreground/15 px-3 py-2.5">
