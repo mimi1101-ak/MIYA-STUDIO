@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Suspense } from "react"
 
 import { MomoAvatar } from "@/components/momo-avatar"
@@ -74,12 +73,6 @@ export default function LoginPage() {
           </div>
         </CornerFrame>
       </div>
-
-      <footer className="py-6 font-mono text-[11px] tracking-[0.08em] text-dim">
-        <Link href="/refund" className="underline-offset-4 hover:text-foreground hover:underline">
-          환불정책
-        </Link>
-      </footer>
     </main>
   )
 }
