@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import type { Database } from "@/lib/database.types"
 
-const PUBLIC_PATHS = ["/login", "/auth"]
+// /refund: 결제 심사용 환불정책이라 로그인 없이 열려야 합니다.
+const PUBLIC_PATHS = ["/login", "/auth", "/refund"]
 
 // 모든 요청마다 로그인 세션을 갱신하고, 로그인 여부에 따라 이동시킵니다.
 export async function updateSession(request: NextRequest) {

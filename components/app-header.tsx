@@ -33,12 +33,12 @@ const activeClass = "text-foreground before:size-1 before:bg-foreground before:c
 // PC 메뉴 한 칸
 const PC_ITEM = "h-9 rounded-md px-3 text-[13px] tracking-wide"
 
-// 모든 화면 위쪽의 메뉴. 로그인 화면에서는 숨깁니다.
+// 모든 화면 위쪽의 메뉴. 로그인 화면과 환불정책(로그인 없이 보는 화면)에서는 숨깁니다.
 // PC: 떠 있는 막대(왼쪽 메뉴 · 가운데 MIYA STUDIO · 오른쪽 시계·프로필·MOMO와 대화)
 // 휴대폰·좁은 화면(1024px 미만): 맨 위 줄(MIYA STUDIO · 시계) + 옆으로 미는 메뉴 줄
 export function AppHeader() {
   const pathname = usePathname()
-  if (pathname === "/login" || pathname.startsWith("/auth")) return null
+  if (pathname === "/login" || pathname.startsWith("/auth") || pathname === "/refund") return null
 
   const isGroupActive = (group: NavGroup) => group.match.some((path) => pathname.startsWith(path))
 
