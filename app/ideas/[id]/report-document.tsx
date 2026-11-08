@@ -252,7 +252,7 @@ function Table({ rows }: { rows: [string, string][] }) {
   )
 }
 
-// 문서의 한 줄을 할 일로 넣기: 빠른 입력과 같은 규칙으로 빈 시간에 들어가고, 이 아이디어에서 보낸 할 일로 연결됩니다.
+// 문서의 한 줄을 할 일로 넣기: 오늘 할 일 맨 아래에 들어가고, 이 아이디어에서 보낸 할 일로 연결됩니다.
 function useSendTask(text: string, ideaId: string) {
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
@@ -260,7 +260,7 @@ function useSendTask(text: string, ideaId: string) {
   function send() {
     setResult(null)
     startTransition(async () => {
-      const res = await quickAdd(text, "task", ideaId)
+      const res = await quickAdd(text, "today", ideaId)
       setResult(res.ok ? { ok: true, text: `할 일로 넣었어요. ${res.message ?? ""}`.trim() } : { ok: false, text: res.error })
     })
   }
@@ -306,7 +306,7 @@ function RoadmapAction({ action, ideaId }: { action: string; ideaId: string }) {
   )
 }
 
-// 이번 주 첫 행동 하나. "할 일로 넣기"를 누르면 빠른 입력과 같은 규칙으로 빈 시간에 들어갑니다.
+// 이번 주 첫 행동 하나. "할 일로 넣기"를 누르면 오늘 할 일 맨 아래에 들어갑니다.
 function NextStep({ number, step, ideaId }: { number: number; step: string; ideaId: string }) {
   const { send, pending, result } = useSendTask(step, ideaId)
 

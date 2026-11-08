@@ -100,13 +100,12 @@ export function ItemEditor({
     event.preventDefault()
     const cleanTitle = title.trim()
     if (!cleanTitle) return setError("제목을 입력해 주세요.")
-    const start = time ? parseClock(time) : null
-    if (time && start === null) return setError("시각을 확인해 주세요.")
+    const start = kind !== "task" && time ? parseClock(time) : null
+    if (kind !== "task" && time && start === null) return setError("시각을 확인해 주세요.")
     const id = value.id
 
     if (kind === "task") {
-      if (start !== null && !date) return setError("시각을 정하려면 날짜도 골라 주세요.")
-      const input = { title: cleanTitle, minutes, goalId: goalId || null, date: date || null, start, ideaId: value.ideaId ?? null }
+      const input = { title: cleanTitle, minutes, goalId: goalId || null, date: date || null, ideaId: value.ideaId ?? null }
       return run(() => (id ? updateTask(id, input) : addTask(input)))
     }
     if (start === null) return setError("시작 시각을 골라 주세요.")
@@ -160,7 +159,7 @@ export function ItemEditor({
         autoFocus
       />
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className={cn("grid grid-cols-2 gap-2", kind === "task" ? "sm:grid-cols-3" : "sm:grid-cols-4")}>
         {kind === "routine" ? (
           <div className="col-span-2 flex flex-col gap-1">
             <Label className="text-xs text-muted-foreground">반복 요일</Label>
@@ -174,12 +173,14 @@ export function ItemEditor({
             <Input id={`${uid}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
         )}
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={`${uid}-time`} className="text-xs text-muted-foreground">
-            시작{kind === "task" && " (선택)"}
-          </Label>
-          <Input id={`${uid}-time`} type="time" step={300} value={time} onChange={(e) => setTime(e.target.value)} />
-        </div>
+        {kind !== "task" && (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`${uid}-time`} className="text-xs text-muted-foreground">
+              시작
+            </Label>
+            <Input id={`${uid}-time`} type="time" step={300} value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <Label htmlFor={`${uid}-minutes`} className="text-xs text-muted-foreground">
             {kind === "task" ? "예상 시간" : "길이"}
@@ -221,7 +222,8 @@ export function ItemEditor({
 
       {kind === "task" && (
         <p className="text-xs text-muted-foreground">
-          시작 시각을 비워 두면 일할 수 있는 시간 중 빈 시간에 자동으로 넣어요.
+          {isNew ? "그날" : "날짜를 바꾸면 새 날짜의"} 할 일 목록 맨 아래에 들어가요. 날짜를 비우면 &apos;날짜 미정&apos;에 둬요.
+          예상 시간은 목표 진척도 계산에만 쓰여요.
         </p>
       )}
 

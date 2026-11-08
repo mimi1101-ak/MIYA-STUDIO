@@ -8,7 +8,7 @@ import type { WorkHours } from "@/lib/schedule"
 import { isValidDate } from "@/lib/validation"
 
 // MOMO와 목표 세우기 (Claude API). 대화로 목표를 구체화하고, 월 → 주 → 일 단위 할 일 계획안을 만듭니다.
-// 시간 배치는 AI가 하지 않고 배치 규칙(lib/schedule.ts)이 합니다. AI는 날짜와 예상 시간만 정합니다.
+// AI는 할 일·날짜·예상 시간만 정합니다. 할 일은 시각 없이 그날 목록에 계획 순서대로 들어갑니다(lib/task-order.ts).
 
 export const DEFAULT_MODEL = "claude-opus-5-5"
 const MAX_PLAN_TASKS = 150
@@ -40,7 +40,7 @@ const SYSTEM_PROMPT = `당신은 MIYA STUDIO의 마스코트 캐릭터 MOMO입�
    - 각 할 일의 date는 그 할 일을 할 날짜(YYYY-MM-DD)입니다. 오늘 이후, 마감일 이전, 사용자가 일하는 요일에만 둡니다.
    - 주당 쓸 시간을 넘기지 않게 나눕니다. 하루에 몰지 말고 고르게 펼칩니다. 마감 직전에는 여유를 둡니다.
    - 할 일은 최대 ${MAX_PLAN_TASKS}개입니다. 기간이 길면 할 일을 더 크게 묶습니다.
-   - 실제 시각 배치는 앱이 일정·루틴을 피해서 자동으로 하므로, 시각은 정하지 않습니다.
+   - 할 일은 시각 없이 그날 할 일 목록에 계획 순서대로 들어가므로, 시각은 정하지 않습니다. 같은 날 할 일은 먼저 할 것부터 적습니다.
 3. 사용자가 계획을 고쳐 달라고 하면, 고친 전체 계획안을 다시 만듭니다.
 
 답변 형식

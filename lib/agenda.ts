@@ -8,7 +8,8 @@ import {
   type UnscheduledTask,
 } from "@/lib/agenda-types"
 import { addDays, daysInMonth, kstToIso, msToKst, parseClock, weekdayOf, weekStartOf } from "@/lib/date"
-import { carryOverPastTasks, loadWorkHours, type Supabase } from "@/lib/schedule-db"
+import type { Supabase } from "@/lib/schedule-db"
+import { carryOverPastTasks, TASK_ORDER } from "@/lib/task-order"
 
 const MINUTE_MS = 60_000
 const DAY_MINUTES = 24 * 60
@@ -26,12 +27,15 @@ export async function loadAgenda(
   const fromIso = kstToIso(fromYmd)
   const toIso = kstToIso(addDays(toYmd, 1))
 
+  let tasksQuery = supabase
+    .from("tasks")
+    .select("id, title, is_done, scheduled_at, estimated_minutes, goal_id, idea_id, source, carry_count, idea:ideas(title)")
+    .gte("scheduled_at", fromIso)
+    .lt("scheduled_at", toIso)
+  for (const o of TASK_ORDER) tasksQuery = tasksQuery.order(o.column, { ascending: o.ascending })
+
   const [tasks, events, routines, checks, goals] = await Promise.all([
-    supabase
-      .from("tasks")
-      .select("id, title, is_done, scheduled_at, estimated_minutes, goal_id, idea_id, source, carry_count, idea:ideas(title)")
-      .gte("scheduled_at", fromIso)
-      .lt("scheduled_at", toIso),
+    tasksQuery,
     supabase
       .from("events")
       .select("id, title, starts_at, ends_at")
@@ -50,17 +54,17 @@ export async function loadAgenda(
   const goalTitles = new Map(goals.map((g) => [g.id, g.title]))
   const items: AgendaItem[] = []
 
-  for (const t of tasks.data) {
-    const start = Date.parse(t.scheduled_at!)
-    const { ymd, minutes } = msToKst(start)
+  // 할 일은 시각 없이 날짜와 그날 순서만 씁니다(DB 정렬 순서 = 같은 날 안의 순서).
+  tasks.data.forEach((t, index) => {
     items.push({
       key: `task:${t.id}`,
       kind: "task",
       id: t.id,
       title: t.title,
-      ymd,
-      start: minutes,
-      end: Math.min(minutes + t.estimated_minutes, DAY_MINUTES),
+      ymd: msToKst(Date.parse(t.scheduled_at!)).ymd,
+      start: 0,
+      end: t.estimated_minutes,
+      rank: index,
       done: t.is_done,
       goalId: t.goal_id,
       goalTitle: t.goal_id ? (goalTitles.get(t.goal_id) ?? null) : null,
@@ -69,7 +73,7 @@ export async function loadAgenda(
       source: asSource(t.source),
       carryCount: t.carry_count,
     })
-  }
+  })
 
   // 자정을 넘기는 일정은 날짜마다 나눠서 보여 줍니다.
   for (const e of events.data) {
@@ -87,6 +91,7 @@ export async function loadAgenda(
         ymd,
         start: ymd === first.ymd ? first.minutes : 0,
         end: ymd === last.ymd ? last.minutes + 1 : DAY_MINUTES,
+        rank: 0,
         done: false,
         goalId: null,
         goalTitle: null,
@@ -112,6 +117,7 @@ export async function loadAgenda(
         ymd,
         start,
         end: Math.min(start + r.duration_minutes, DAY_MINUTES),
+        rank: 0,
         done: checked.has(`${r.id}:${ymd}`),
         goalId: null,
         goalTitle: null,
@@ -213,40 +219,49 @@ export async function loadOftenCarried(supabase: Supabase) {
   return data ?? []
 }
 
-// "오늘" 화면에 필요한 것을 한 번에: 지난 할 일 이월 → 오늘 항목·목표·시간 미정·자주 미룬 할 일
-export async function loadToday(supabase: Supabase, userId: string) {
+// "오늘" 화면에 필요한 것을 한 번에: 지난 할 일 이월 → 오늘·내일 할 일(순서대로)·목표·날짜 미정·자주 미룬 할 일
+export async function loadToday(supabase: Supabase) {
   const now = Date.now()
-  const { ymd: today, minutes } = msToKst(now)
+  const today = msToKst(now).ymd
+  const tomorrow = addDays(today, 1)
 
   try {
-    await carryOverPastTasks(supabase, userId, now)
+    await carryOverPastTasks(supabase, now)
   } catch (error) {
     console.error("[today] 이월 실패:", error instanceof Error ? error.message : error)
   }
 
   const [items, goals, unscheduled, oftenCarried] = await Promise.all([
-    loadAgenda(supabase, today, today),
+    loadAgenda(supabase, today, tomorrow),
     loadGoalOptions(supabase),
     loadUnscheduled(supabase),
     loadOftenCarried(supabase),
   ])
   if (!items || !goals || !unscheduled) return null
-  return { today, minutes, items: sortItems(items), goals, unscheduled, oftenCarried }
+  const tasks = sortItems(items.filter((i) => i.kind === "task"))
+  return {
+    today,
+    tomorrow,
+    todayTasks: tasks.filter((t) => t.ymd === today),
+    tomorrowTasks: tasks.filter((t) => t.ymd === tomorrow),
+    goals,
+    unscheduled,
+    oftenCarried,
+  }
 }
 
 export type CalendarView = "week" | "month"
 
 export type RoutineRow = { id: string; title: string; weekdays: number[]; start: number; minutes: number }
 
-// 캘린더 화면: 보이는 기간(주간 7일 / 월간 6주 칸)의 항목 + 목표·루틴 목록 + 일할 시간
+// 캘린더 화면(보기 전용): 보이는 기간(주간 7일 / 월간 6주 칸)의 할 일·일정 + 목표·루틴 목록
 export async function loadCalendar(
   supabase: Supabase,
-  userId: string,
   view: CalendarView,
   dateParam: string | null
 ) {
   const now = Date.now()
-  const { ymd: today, minutes: nowMinutes } = msToKst(now)
+  const today = msToKst(now).ymd
   const date = dateParam ?? today
 
   const first = view === "month" ? weekStartOf(`${date.slice(0, 8)}01`) : weekStartOf(date)
@@ -254,12 +269,12 @@ export async function loadCalendar(
   const last = view === "month" ? addDays(weekStartOf(monthLast), 6) : addDays(first, 6)
 
   try {
-    await carryOverPastTasks(supabase, userId, now)
+    await carryOverPastTasks(supabase, now)
   } catch (error) {
     console.error("[calendar] 이월 실패:", error instanceof Error ? error.message : error)
   }
 
-  const [items, goals, allGoals, routines, work] = await Promise.all([
+  const [items, goals, allGoals, routines] = await Promise.all([
     loadAgenda(supabase, first, last),
     loadGoalOptions(supabase),
     loadGoalOptions(supabase, true),
@@ -267,17 +282,16 @@ export async function loadCalendar(
       .from("routines")
       .select("id, title, weekdays, start_time, duration_minutes")
       .order("start_time", { ascending: true }),
-    loadWorkHours(supabase, userId),
   ])
   if (!items || !goals || !allGoals || routines.error) return null
 
   return {
     today,
-    nowMinutes,
     date,
     first,
     last,
-    items: sortItems(items),
+    // 루틴은 매일 반복돼 칸을 채우므로 달력에는 넣지 않고 오른쪽 루틴 목록에서만 보여 줍니다.
+    items: sortItems(items.filter((i) => i.kind !== "routine")),
     goals,
     allGoals,
     routines: routines.data.map(
@@ -289,6 +303,5 @@ export async function loadCalendar(
         minutes: r.duration_minutes,
       })
     ),
-    work,
   }
 }

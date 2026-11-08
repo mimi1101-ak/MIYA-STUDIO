@@ -1,17 +1,5 @@
 "use client"
 
-import type {
-  DateSelectArg,
-  EventClickArg,
-  EventContentArg,
-  EventDropArg,
-  EventInput,
-} from "@fullcalendar/core"
-import koLocale from "@fullcalendar/core/locales/ko"
-import dayGridPlugin from "@fullcalendar/daygrid"
-import interactionPlugin, { type EventResizeDoneArg } from "@fullcalendar/interaction"
-import FullCalendar from "@fullcalendar/react"
-import timeGridPlugin from "@fullcalendar/timegrid"
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
@@ -30,30 +18,21 @@ import {
   formatWeekLabel,
   WEEKDAYS,
 } from "@/lib/date"
-import type { WorkHours } from "@/lib/schedule"
-import { moveItem } from "@/lib/schedule-actions"
 import { cn } from "@/lib/utils"
+
+import { DayOffChat } from "./day-off-chat"
 
 type Props = {
   view: CalendarView
   date: string
   today: string
-  nowMinutes: number
   first: string
   last: string
   items: AgendaItem[]
   goals: GoalOption[]
   allGoals: GoalOption[]
   routines: RoutineRow[]
-  work: WorkHours
   goalId: string | null
-}
-
-// 종류별 색(우주 팔레트): 할 일은 별빛 바탕에 검은 글자, 일정은 어두운 바탕에 흰 테두리, 루틴은 점선 테두리
-const KIND_COLORS: Record<AgendaItem["kind"], { bg: string; border: string; text: string }> = {
-  task: { bg: "#f3f3f1", border: "#f3f3f1", text: "#040405" },
-  event: { bg: "#1b1b1f", border: "#a6a6ab", text: "#f3f3f1" },
-  routine: { bg: "#0b0b0d", border: "#808086", text: "#a6a6ab" },
 }
 
 function calendarUrl(view: CalendarView, date: string, goalId: string | null) {
@@ -68,23 +47,22 @@ function shiftMonth(date: string, months: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-// FullCalendar는 시간대를 UTC로 두고 "한국 시각 그대로"를 넣고 받습니다(기기 시간대와 상관없이 한국 시간으로 보이게).
-function toWallClock(ymd: string, minutes: number): string {
-  return minutes >= 24 * 60 ? `${addDays(ymd, 1)}T00:00:00` : `${ymd}T${formatClock(minutes)}:00`
+function daysFrom(first: string, last: string): string[] {
+  const days: string[] = []
+  for (let ymd = first; ymd <= last; ymd = addDays(ymd, 1)) days.push(ymd)
+  return days
 }
 
-function fromWallClock(date: Date): { ymd: string; minutes: number } {
-  return { ymd: date.toISOString().slice(0, 10), minutes: date.getUTCHours() * 60 + date.getUTCMinutes() }
-}
-
+// 캘린더(보기 전용): 날짜 칸마다 일정(시각 순) → 할 일(그날 순서) 제목을 잘리지 않게 다 보여 줍니다.
+// 시간표·끌어서 옮기기는 없고, 항목을 누르면 달력 바로 아래에서 고칩니다. 칸을 넓게 쓰려고 다른 칸(일정 미루기·목표·루틴)은 달력 아래에 둡니다.
 export function CalendarBoard(props: Props) {
-  const { view, date, today, nowMinutes, items, goals, allGoals, routines, work, goalId } = props
+  const { view, date, today, first, last, items, goals, allGoals, routines, goalId } = props
   const router = useRouter()
   const [editing, setEditing] = useState<{ value: EditorValue; isNew: boolean } | null>(null)
-  const [notice, setNotice] = useState<{ type: "ok" | "error"; text: string } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // 휴대폰에서는 편집 칸이 캘린더 아래에 있으니, 열리면 그쪽으로 스크롤합니다.
+  // 편집 칸은 달력 아래에 있으니, 열리면 그쪽으로 스크롤합니다.
   useEffect(() => {
     if (editing) panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
   }, [editing])
@@ -95,59 +73,23 @@ export function CalendarBoard(props: Props) {
   const step = (direction: 1 | -1) =>
     go(view, view === "month" ? shiftMonth(date, direction) : addDays(date, 7 * direction))
 
-  // 보이는 시간대: 일할 시간과 항목을 모두 담도록 (최소 8시~20시)
-  const timed = items.filter((i) => i.start > 0 || i.end < 24 * 60)
-  const minHour = Math.floor(Math.min(work.start, 8 * 60, ...timed.map((i) => i.start)) / 60)
-  const maxHour = Math.ceil(Math.max(work.end, 20 * 60, ...timed.map((i) => i.end)) / 60)
-
-  const events: EventInput[] = items.map((item) => {
-    const colors = KIND_COLORS[item.kind]
-    const splitPiece = item.kind === "event" && (item.start === 0 || item.end === 24 * 60)
-    const movable = item.kind === "task" || (item.kind === "event" && !splitPiece)
-    return {
-      id: item.key,
-      title: item.title,
-      start: toWallClock(item.ymd, item.start),
-      end: toWallClock(item.ymd, item.end),
-      editable: movable,
-      backgroundColor: colors.bg,
-      borderColor: colors.border,
-      textColor: colors.text,
-      classNames: [
-        `ev-${item.kind}`,
-        item.done ? "ev-done" : "",
-        goalId && item.goalId !== goalId ? "ev-dim" : "",
-      ].filter(Boolean),
-      extendedProps: { item },
-    }
-  })
+  const byDay = new Map<string, AgendaItem[]>()
+  for (const item of items) byDay.set(item.ymd, [...(byDay.get(item.ymd) ?? []), item])
+  const days = daysFrom(first, last)
+  const month = date.slice(0, 7)
 
   function openItem(item: AgendaItem) {
     setNotice(null)
-    if (item.kind === "routine") {
-      const routine = routines.find((r) => r.id === item.id)
-      if (!routine) return
-      return setEditing({
-        isNew: false,
-        value: {
-          ...newEditorValue("routine", null, routine.start),
-          id: routine.id,
-          title: routine.title,
-          weekdays: routine.weekdays,
-          minutes: routine.minutes,
-        },
-      })
-    }
     setEditing({
       isNew: false,
       value: {
         kind: item.kind,
         id: item.id,
         title: item.title,
-        minutes: Math.max(item.end - item.start, 5),
+        minutes: item.kind === "task" ? item.end : Math.max(item.end - item.start, 5),
         goalId: item.goalId,
         date: item.ymd,
-        start: item.start,
+        start: item.kind === "task" ? null : item.start,
         weekdays: [],
         ideaId: item.ideaId,
         ideaTitle: item.ideaTitle,
@@ -155,39 +97,16 @@ export function CalendarBoard(props: Props) {
     })
   }
 
-  function handleSelect(info: DateSelectArg) {
+  function addOn(ymd: string) {
     setNotice(null)
-    const start = fromWallClock(info.start)
-    const minutes = Math.round((info.end.getTime() - info.start.getTime()) / 60_000)
-    const value = newEditorValue("task", start.ymd, info.allDay ? null : start.minutes)
-    if (!info.allDay && minutes >= 15 && minutes <= 720) value.minutes = minutes
-    setEditing({ isNew: true, value })
+    setEditing({ isNew: true, value: newEditorValue("task", ymd, null) })
   }
 
-  async function handleMove(info: EventDropArg | EventResizeDoneArg) {
-    const item = info.event.extendedProps.item as AgendaItem
-    const startDate = info.event.start
-    if (!startDate || item.kind === "routine") return info.revert()
-    const endDate = info.event.end ?? new Date(startDate.getTime() + (item.end - item.start) * 60_000)
-    const start = fromWallClock(startDate)
-    const minutes = Math.round((endDate.getTime() - startDate.getTime()) / 60_000)
-    setNotice(null)
-    const result = await moveItem(item.kind, item.id, start.ymd, start.minutes, minutes)
-    if (!result.ok) {
-      info.revert()
-      setNotice({ type: "error", text: result.error })
-    } else {
-      setNotice({
-        type: "ok",
-        text: `'${item.title}'을(를) ${formatDayLabel(start.ymd)} ${formatClock(start.minutes)}로 옮겼어요.`,
-      })
-    }
-  }
-
-  const title = view === "month" ? formatMonthLabel(`${date.slice(0, 8)}01`) : formatWeekLabel(props.first)
+  const title = view === "month" ? formatMonthLabel(`${date.slice(0, 8)}01`) : formatWeekLabel(first)
+  const dayProps = { today, goalId, onOpen: openItem, onAdd: addOn }
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="flex flex-col gap-4">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => go(view, today)}>
@@ -202,95 +121,85 @@ export function CalendarBoard(props: Props) {
             </Button>
           </div>
           <h2 className="text-base font-semibold tabular-nums">{title}</h2>
-          <div role="group" aria-label="보기" className="ml-auto flex rounded-lg bg-muted p-0.5">
-            {(["week", "month"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                aria-pressed={view === v}
-                onClick={() => go(v, date)}
-                className={cn(
-                  "h-7 rounded-md px-3 text-sm",
-                  view === v ? "bg-card font-medium shadow-sm" : "text-muted-foreground"
-                )}
-              >
-                {v === "week" ? "주간" : "월간"}
-              </button>
-            ))}
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" size="sm" onClick={() => addOn(today)}>
+              + 추가
+            </Button>
+            <div role="group" aria-label="보기" className="flex rounded-lg bg-muted p-0.5">
+              {(["week", "month"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={view === v}
+                  onClick={() => go(v, date)}
+                  className={cn(
+                    "h-7 rounded-md px-3 text-sm",
+                    view === v ? "bg-card font-medium shadow-sm" : "text-muted-foreground"
+                  )}
+                >
+                  {v === "week" ? "주간" : "월간"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <Legend />
 
         {notice && (
-          <p
-            role={notice.type === "error" ? "alert" : "status"}
-            className={cn("text-sm", notice.type === "error" ? "text-destructive" : "text-muted-foreground")}
-          >
-            {notice.text}
+          <p role="status" className="text-sm text-muted-foreground">
+            {notice}
           </p>
         )}
 
-        <div className="min-h-[28rem] rounded-xl bg-card p-1 ring-1 ring-foreground/10 sm:p-2">
-          <div>
-            <FullCalendar
-              key={`${view}-${date}`}
-              plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-              initialView={view === "month" ? "dayGridMonth" : "timeGridWeek"}
-              initialDate={date}
-              timeZone="UTC"
-              now={toWallClock(today, nowMinutes)}
-              locale={koLocale}
-              firstDay={1}
-              headerToolbar={false}
-              height="auto"
-              allDaySlot={false}
-              nowIndicator
-              slotMinTime={`${String(minHour).padStart(2, "0")}:00:00`}
-              slotMaxTime={`${String(maxHour).padStart(2, "0")}:00:00`}
-              slotDuration="00:30:00"
-              snapDuration="00:15:00"
-              slotLabelFormat={{ hour: "numeric", minute: "2-digit", hour12: false }}
-              eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
-              businessHours={{
-                daysOfWeek: work.days,
-                startTime: formatClock(work.start),
-                endTime: formatClock(work.end),
-              }}
-              dayMaxEvents={view === "month" ? 4 : false}
-              eventDisplay="block"
-              events={events}
-              editable
-              eventDurationEditable
-              selectable
-              selectMirror
-              longPressDelay={350}
-              select={handleSelect}
-              eventClick={(info: EventClickArg) => openItem(info.event.extendedProps.item as AgendaItem)}
-              eventDrop={handleMove}
-              eventResize={handleMove}
-              eventContent={renderEvent}
-              dayHeaderContent={(arg) =>
-                view === "week" ? (
-                  <span className="flex flex-col items-center leading-tight">
-                    <span className="text-[0.7rem] text-muted-foreground">{WEEKDAYS[arg.date.getUTCDay()]}</span>
-                    <span className="text-sm font-semibold">{arg.date.getUTCDate()}</span>
-                  </span>
-                ) : (
-                  WEEKDAYS[arg.date.getUTCDay()]
-                )
-              }
-            />
-          </div>
+        <div className="rounded-xl bg-card p-1 ring-1 ring-foreground/10 sm:p-2">
+          {view === "week" ? (
+            // 주간: PC는 7칸 가로, 휴대폰은 하루씩 세로로 쌓아 제목을 넓게 보여 줍니다.
+            <ol className="grid grid-cols-1 md:grid-cols-7">
+              {days.map((ymd) => (
+                <li
+                  key={ymd}
+                  className="min-w-0 border-foreground/10 not-last:border-b md:min-h-[26rem] md:not-last:border-r md:not-last:border-b-0"
+                >
+                  <DayCell ymd={ymd} items={byDay.get(ymd) ?? []} layout="week" {...dayProps} />
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div>
+              <ol aria-hidden className="grid grid-cols-7 border-b border-foreground/10">
+                {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+                  <li key={d} className="py-1.5 text-center font-mono text-[11px] text-dim">
+                    {WEEKDAYS[d]}
+                  </li>
+                ))}
+              </ol>
+              <ol className="grid grid-cols-7">
+                {days.map((ymd, index) => (
+                  <li
+                    key={ymd}
+                    className={cn(
+                      "min-h-[6.5rem] min-w-0 border-foreground/10 md:min-h-[9rem]",
+                      index % 7 !== 6 && "border-r",
+                      index < days.length - 7 && "border-b",
+                      ymd.slice(0, 7) !== month && "opacity-40"
+                    )}
+                  >
+                    <DayCell ymd={ymd} items={byDay.get(ymd) ?? []} layout="month" {...dayProps} />
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">
-          빈 칸을 누르거나 끌어서 새 항목을 만들고, 항목을 끌어 시간·날짜를 옮기거나 아래 끝을 끌어 길이를 바꿔요.
-          휴대폰에서는 길게 누른 뒤 끌어요. 회색 바탕은 일할 수 있는 시간이에요.
+          보기 전용 캘린더예요. 항목을 누르면 고칠 수 있고, 날짜를 누르면 그날 할 일을 추가해요. 할 일 순서는 오늘 화면에서
+          끌어서 바꿔요.
         </p>
       </div>
 
-      <div ref={panelRef} className="flex flex-col gap-4">
-        {editing ? (
+      {editing && (
+        <div ref={panelRef} className="w-full max-w-xl scroll-mt-28">
           <Card size="sm">
             <CardHeader>
               <CardTitle>{editing.isNew ? "새로 만들기" : `${KIND_LABELS[editing.value.kind]} 고치기`}</CardTitle>
@@ -302,18 +211,15 @@ export function CalendarBoard(props: Props) {
                 goals={goals}
                 allowKindChange={editing.isNew}
                 onClose={() => setEditing(null)}
-                onSaved={(message) => setNotice(message ? { type: "ok", text: message } : null)}
+                onSaved={(message) => setNotice(message ?? null)}
               />
             </CardContent>
           </Card>
-        ) : (
-          <Button
-            type="button"
-            onClick={() => setEditing({ isNew: true, value: newEditorValue("task", today, null) })}
-          >
-            + 할 일·일정·루틴 추가
-          </Button>
-        )}
+        </div>
+      )}
+
+      <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <DayOffChat />
 
         <GoalPanel
           items={items}
@@ -344,32 +250,108 @@ export function CalendarBoard(props: Props) {
   )
 }
 
-function renderEvent(arg: EventContentArg) {
-  const item = arg.event.extendedProps.item as AgendaItem
+// 날짜 칸 하나: 날짜(누르면 그날 할 일 추가) + 일정·할 일 목록
+function DayCell({
+  ymd,
+  items,
+  layout,
+  today,
+  goalId,
+  onOpen,
+  onAdd,
+}: {
+  ymd: string
+  items: AgendaItem[]
+  layout: "week" | "month"
+  today: string
+  goalId: string | null
+  onOpen: (item: AgendaItem) => void
+  onAdd: (ymd: string) => void
+}) {
+  const isToday = ymd === today
+  const week = layout === "week"
   return (
-    <div className="flex min-w-0 flex-col overflow-hidden px-0.5 leading-tight">
-      <span className="truncate text-[0.7rem] opacity-80">{arg.timeText}</span>
-      <span className="flex min-w-0 items-center gap-0.5 font-medium">
-        {item.source === "ai" && <Sparkles className="size-3 shrink-0" aria-label="AI가 만든 할 일" />}
-        <span className="truncate">{arg.event.title}</span>
-      </span>
+    <div
+      className={cn(
+        "flex h-full gap-2 p-1.5",
+        week ? "flex-row md:flex-col md:p-2" : "flex-col p-1 md:p-1.5",
+        isToday && "bg-foreground/[0.06]"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onAdd(ymd)}
+        aria-label={`${formatDayLabel(ymd)}에 할 일 추가`}
+        className={cn(
+          "flex shrink-0 items-baseline gap-1 self-start rounded-sm px-1 text-left hover:bg-foreground/10",
+          week && "w-14 flex-col items-start gap-0 md:w-auto md:flex-row md:items-baseline md:gap-1.5"
+        )}
+      >
+        {week && <span className="font-mono text-[11px] text-dim">{WEEKDAYS[new Date(`${ymd}T00:00:00Z`).getUTCDay()]}</span>}
+        <span className={cn("font-mono text-sm tabular-nums", isToday && "font-bold underline underline-offset-4")}>
+          {Number(ymd.slice(8))}
+        </span>
+      </button>
+      {items.length > 0 ? (
+        <ul className="flex min-w-0 flex-1 flex-col gap-1">
+          {items.map((item) => (
+            <li key={item.key}>
+              <CalendarItem item={item} compact={!week} dim={goalId !== null && item.goalId !== goalId} onOpen={onOpen} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        week && <p className="self-center text-xs text-dim md:hidden">비어 있어요</p>
+      )}
     </div>
+  )
+}
+
+// 항목 하나. 제목은 줄바꿈으로 끝까지 보여 줍니다(잘리지 않게).
+function CalendarItem({
+  item,
+  compact,
+  dim,
+  onOpen,
+}: {
+  item: AgendaItem
+  compact: boolean
+  dim: boolean
+  onOpen: (item: AgendaItem) => void
+}) {
+  const isTask = item.kind === "task"
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(item)}
+      className={cn(
+        "flex w-full flex-col items-start rounded-sm px-1.5 py-1 text-left leading-snug transition-opacity",
+        compact ? "text-[10px] md:text-xs" : "text-[13px]",
+        isTask ? "bg-foreground text-background" : "bg-secondary text-foreground ring-1 ring-foreground/40",
+        item.done && "line-through opacity-45",
+        dim && "opacity-20"
+      )}
+    >
+      {!isTask && <span className="font-mono text-[0.9em] opacity-75">{formatClock(item.start)}</span>}
+      <span className="w-full min-w-0 [overflow-wrap:anywhere]">
+        {item.source === "ai" && <Sparkles className="mr-0.5 inline size-3 align-[-2px]" aria-label="AI가 만든 할 일" />}
+        {item.title}
+      </span>
+    </button>
   )
 }
 
 function Legend() {
   return (
     <ul className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground" aria-label="범례">
-      {(["task", "event", "routine"] as const).map((kind) => (
-        <li key={kind} className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className={cn("size-3 rounded-sm border", kind === "routine" && "border-dashed")}
-            style={{ backgroundColor: KIND_COLORS[kind].bg, borderColor: KIND_COLORS[kind].border }}
-          />
-          {KIND_LABELS[kind]}
-        </li>
-      ))}
+      <li className="flex items-center gap-1.5">
+        <span aria-hidden className="size-3 rounded-sm bg-foreground" />
+        {KIND_LABELS.task}
+      </li>
+      <li className="flex items-center gap-1.5">
+        <span aria-hidden className="size-3 rounded-sm bg-secondary ring-1 ring-foreground/40" />
+        {KIND_LABELS.event}
+      </li>
       <li className="flex items-center gap-1">
         <Sparkles className="size-3" aria-hidden />
         AI가 만든 할 일
@@ -432,8 +414,8 @@ function GoalPanel({
             <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto text-sm">
               {selected.own.map((t) => (
                 <li key={t.key} className={cn("flex gap-2", t.done && "text-muted-foreground line-through")}>
-                  <span className="w-20 shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {t.ymd.slice(5).replace("-", "/")} {formatClock(t.start)}
+                  <span className="w-12 shrink-0 text-xs text-muted-foreground tabular-nums">
+                    {t.ymd.slice(5).replace("-", "/")}
                   </span>
                   <span className="min-w-0 break-words">{t.title}</span>
                 </li>
@@ -485,7 +467,7 @@ function RoutinePanel({
       <CardContent>
         {routines.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            매일 아침 뉴스 30분, 점심시간처럼 반복되는 습관을 넣어 두면 그 시간은 비워 두고 할 일을 배치해요.
+            매일 아침 뉴스 30분처럼 반복되는 습관을 적어 두는 곳이에요. 달력 칸에는 보이지 않고 여기에서만 보여요.
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5 text-sm">

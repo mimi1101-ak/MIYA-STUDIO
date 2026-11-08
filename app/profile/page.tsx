@@ -59,8 +59,8 @@ async function ProfileContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>일할 수 있는 시간</CardTitle>
-          <CardDescription>MOMO와 자동 배치가 할 일을 넣는 시간대예요. 일정·루틴이 있는 시간은 피해서 넣어요.</CardDescription>
+          <CardTitle>일하는 요일·시간</CardTitle>
+          <CardDescription>MOMO가 목표 계획을 짤 때 어느 요일에, 하루에 얼마나 넣을지 정하는 데 써요. 일정 미루기는 일하지 않는 요일을 건너뛰어요.</CardDescription>
         </CardHeader>
         <CardContent>
           <WorkHoursForm

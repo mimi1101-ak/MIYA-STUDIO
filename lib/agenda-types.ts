@@ -8,7 +8,9 @@ export const KIND_LABELS: Record<ItemKind, string> = {
   routine: "루틴",
 }
 
-// 화면에 놓이는 항목 하나. 시각은 한국 날짜(ymd) + 0시부터 지난 분(start/end)
+// 화면에 놓이는 항목 하나. 한국 날짜(ymd) 기준.
+// - 일정·루틴: start/end = 0시부터 지난 분(시각)
+// - 할 일: 시각이 없어 start = 0, end = 예상 시간(분). rank = 그날 목록 안의 순서(작을수록 위)
 export type AgendaItem = {
   key: string
   kind: ItemKind
@@ -17,6 +19,7 @@ export type AgendaItem = {
   ymd: string
   start: number
   end: number
+  rank: number
   done: boolean
   goalId: string | null
   goalTitle: string | null
@@ -53,10 +56,13 @@ export function percent(done: number, total: number): number {
   return total > 0 ? Math.round((done / total) * 100) : 0
 }
 
+// 날짜 → (일정·루틴은 시각 순) → 할 일은 그날 순서대로
 export function sortItems(items: AgendaItem[]): AgendaItem[] {
   const order: Record<ItemKind, number> = { event: 0, routine: 1, task: 2 }
   return [...items].sort(
     (a, b) =>
-      a.ymd.localeCompare(b.ymd) || a.start - b.start || order[a.kind] - order[b.kind] || a.end - b.end
+      a.ymd.localeCompare(b.ymd) ||
+      order[a.kind] - order[b.kind] ||
+      (a.kind === "task" ? a.rank - b.rank : a.start - b.start || a.end - b.end)
   )
 }

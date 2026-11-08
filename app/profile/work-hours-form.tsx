@@ -38,7 +38,7 @@ export function WorkHoursForm({
       const result = await updateWorkHours(days, startMinutes, endMinutes)
       setMessage(
         result.ok
-          ? { type: "ok", text: "저장했어요. 앞으로 자동 배치는 이 시간 안에서만 해요." }
+          ? { type: "ok", text: "저장했어요. 다음 계획부터 MOMO가 이 시간을 참고해요." }
           : { type: "error", text: result.error }
       )
     })
@@ -78,9 +78,6 @@ export function WorkHoursForm({
           {pending ? "저장 중…" : "저장"}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        점심시간처럼 빼고 싶은 시간은 캘린더에서 루틴으로 넣어 두면 그 시간은 비워 둬요.
-      </p>
       {message && (
         <p
           role={message.type === "error" ? "alert" : "status"}

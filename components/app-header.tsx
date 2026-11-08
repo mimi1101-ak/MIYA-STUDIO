@@ -18,6 +18,7 @@ const NAV_ITEMS: (NavLink | NavGroup)[] = [
   { href: "/calendar", label: "캘린더" },
   { href: "/goals", label: "목표" },
   { href: "/ideas", label: "아이디어" },
+  { href: "/journal", label: "일지" },
   // 트렌드: EO planet · Long Black · 저장한 글을 하위 메뉴로
   { label: "트렌드", href: TREND_LINKS[0].href, children: TREND_LINKS, match: ["/news", "/insights"] },
   { href: "/projects", label: "프로젝트" },

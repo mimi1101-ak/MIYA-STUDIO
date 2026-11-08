@@ -11,7 +11,7 @@ import { SectionLabel } from "@/components/space-ui"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { GoalOption } from "@/lib/agenda-types"
-import { formatClock, formatDayLabel, formatDuration, msToKst } from "@/lib/date"
+import { formatDayLabel, formatDuration, msToKst } from "@/lib/date"
 import { DOC_TYPES } from "@/lib/idea-report"
 import {
   GOAL_STATUS_LABELS,
@@ -30,11 +30,10 @@ import { createGoalFromIdea } from "./actions"
 
 // 아이디어 ↔ 할 일·목표 연결: 아이디어를 할 일로 보내기, 목표로 만들기, 연결된 할 일·목표 보기
 
-// 할 일이 놓인 때. 예: "10월 12일 (월) 15:00", 시각이 없으면 "시간 미정"
+// 할 일을 할 날. 예: "10월 12일 (월)", 날짜가 없으면 "날짜 미정"
 export function taskWhen(task: LinkedTask): string {
-  if (!task.scheduledAt) return "시간 미정"
-  const { ymd, minutes } = msToKst(Date.parse(task.scheduledAt))
-  return `${formatDayLabel(ymd)} ${formatClock(minutes)}`
+  if (!task.scheduledAt) return "날짜 미정"
+  return formatDayLabel(msToKst(Date.parse(task.scheduledAt)).ymd)
 }
 
 // 목표 상태. 진행 중이면 끝낸 비율도. 예: "진행 중 40%"
@@ -53,7 +52,7 @@ function TaskMark() {
   return <span aria-hidden className="size-1.5 shrink-0 border border-foreground" />
 }
 
-// 아이디어 한 줄을 할 일 양식에 미리 채웁니다. "금요일 3시 치과 1시간"처럼 적어 두었으면 날짜·시각·시간도 읽어요.
+// 아이디어 한 줄을 할 일 양식에 미리 채웁니다. "금요일 치과 1시간"처럼 적어 두었으면 날짜·예상 시간도 읽어요(없으면 오늘).
 // 이 아이디어로 만든 진행 중 목표가 있으면 그 목표에 연결해 둡니다.
 function taskDraft(idea: Idea, links: IdeaLinks, goals: GoalOption[]): EditorValue {
   const now = msToKst(Date.now())
@@ -65,15 +64,15 @@ function taskDraft(idea: Idea, links: IdeaLinks, goals: GoalOption[]): EditorVal
     title: (plan?.title || idea.title).slice(0, LIMITS.taskTitle),
     minutes: plan?.minutes ?? 30,
     goalId: goal?.id ?? null,
-    date: plan?.date ?? null,
-    start: plan?.start ?? null,
+    date: plan?.date ?? now.ymd,
+    start: null,
     weekdays: [],
     ideaId: idea.id,
     ideaTitle: idea.title,
   }
 }
 
-// 아이디어를 할 일로 보내는 양식. 이름·날짜·시각·예상 시간·목표를 고칠 수 있고, 시각을 비우면 빈 시간에 들어갑니다.
+// 아이디어를 할 일로 보내는 양식. 이름·날짜·예상 시간·목표를 고칠 수 있고, 그날 할 일 목록 맨 아래에 들어갑니다.
 export function IdeaTaskEditor({
   idea,
   links,
@@ -198,7 +197,7 @@ export function IdeaLinksPanel({ idea, links, goals }: { idea: Idea; links: Idea
 
       {empty && (
         <p className="text-sm leading-relaxed text-muted-foreground">
-          이 아이디어를 실행으로 옮겨 보세요. 할 일은 일정의 빈 시간에 들어가고, 목표는 MOMO가 아이디어
+          이 아이디어를 실행으로 옮겨 보세요. 할 일은 그날 할 일 목록에 들어가고, 목표는 MOMO가 아이디어
           {idea.reported ? `와 ${DOC_TYPES[idea.kind]}` : ""}를 읽고 월 → 주 → 일 계획을 세워요. 아이디어는 지워지지 않고 연결된 채
           남아요.
         </p>

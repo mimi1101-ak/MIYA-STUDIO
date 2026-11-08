@@ -7,6 +7,7 @@ import { DailyMessage } from "@/components/daily-message"
 import { MomoAvatar, MomoLine } from "@/components/momo-avatar"
 import { LoadingBlock, PageShell } from "@/components/page-shell"
 import { CornerFrame, SectionLabel, SegmentBar } from "@/components/space-ui"
+import { MonthlyGoals } from "@/components/today/monthly-goals"
 import { TodayBoard } from "@/components/today/today-board"
 import { buttonVariants } from "@/components/ui/button"
 import { loadGoalProgress, loadToday } from "@/lib/agenda"
@@ -19,12 +20,15 @@ import {
   formatStamp,
   formatWeekLabel,
   isoWeekNumber,
+  monthStartKST,
   msToKst,
   todayKST,
   weekStartKST,
 } from "@/lib/date"
+import { loadJournal } from "@/lib/journal"
+import { listMonthlyGoals } from "@/lib/monthly-goals"
 
-// "오늘" 화면: 맨 위 MOMO의 메시지 → 관측 창(지금 할 일 · 타임라인 · 빠른 입력, 오른쪽에 이번 주 목표)
+// "오늘" 화면: 맨 위 MOMO의 메시지 → 관측 창(빠른 입력 · 지금 할 일 · 오늘·내일 할 일, 오른쪽에 월별 목표 · 이번 주 목표) → 하루 마무리(일지)
 export default function TodayPage() {
   return (
     <PageShell>
@@ -52,12 +56,21 @@ export default function TodayPage() {
             <Suspense fallback={<LoadingBlock lines={8} />}>
               <TodayContent />
             </Suspense>
-            <Suspense fallback={<LoadingBlock lines={4} />}>
-              <WeeklyGoals />
-            </Suspense>
+            <div className="flex flex-col gap-4 md:gap-5">
+              <Suspense fallback={<LoadingBlock lines={4} />}>
+                <MonthlyGoalsPanel />
+              </Suspense>
+              <Suspense fallback={<LoadingBlock lines={4} />}>
+                <WeeklyGoals />
+              </Suspense>
+            </div>
           </div>
         </div>
       </CornerFrame>
+
+      <Suspense fallback={null}>
+        <JournalNudge />
+      </Suspense>
 
       <p className="flex items-center justify-center gap-2.5 text-center font-mono text-xs text-dim">
         <MomoAvatar size={29} />
@@ -118,8 +131,8 @@ async function PanelBar() {
 }
 
 async function TodayContent() {
-  const { supabase, userId } = await requireUser()
-  const data = await loadToday(supabase, userId)
+  const { supabase } = await requireUser()
+  const data = await loadToday(supabase)
   if (!data) {
     return <MomoLine tone="error">오늘 일정을 불러오지 못했어요. 새로고침해 주세요.</MomoLine>
   }
@@ -127,13 +140,22 @@ async function TodayContent() {
   return (
     <TodayBoard
       today={data.today}
-      initialNow={data.minutes}
-      items={data.items}
+      tomorrow={data.tomorrow}
+      todayTasks={data.todayTasks}
+      tomorrowTasks={data.tomorrowTasks}
       goals={data.goals}
       unscheduled={data.unscheduled}
       oftenCarried={data.oftenCarried}
     />
   )
+}
+
+// 월별 목표: 이번 달 목록을 먼저 불러와 두고, 다른 달은 화면에서 넘겨 봅니다.
+async function MonthlyGoalsPanel() {
+  await requireUser()
+  const month = monthStartKST()
+  const result = await listMonthlyGoals(month)
+  return <MonthlyGoals key={month} thisMonth={month} initialGoals={result.ok ? result.goals : null} />
 }
 
 async function WeeklyGoals() {
@@ -181,6 +203,31 @@ async function WeeklyGoals() {
           </Link>
         </>
       )}
+    </section>
+  )
+}
+
+// 하루 마무리: 오늘 일지를 썼는지 보여 주고 일지 화면으로 보냅니다.
+async function JournalNudge() {
+  const { supabase } = await requireUser()
+  const entry = await loadJournal(supabase, todayKST())
+
+  return (
+    <section
+      aria-label="하루 마무리"
+      className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:flex-row sm:items-center sm:justify-between md:p-5"
+    >
+      <div className="flex flex-col gap-1.5">
+        <SectionLabel code="LOG">하루 마무리</SectionLabel>
+        <p className="text-sm text-muted-foreground">
+          {entry
+            ? `오늘 일지 ${entry.content.length.toLocaleString()}자 · ${formatClock(msToKst(Date.parse(entry.updatedAt)).minutes)} 저장`
+            : "오늘 하루를 돌아보며 생각을 정리해 보세요."}
+        </p>
+      </div>
+      <Link href="/journal" className={buttonVariants({ variant: "outline", className: "h-10 shrink-0 px-4" })}>
+        {entry ? "일지 이어 쓰기" : "일지 쓰기"}
+      </Link>
     </section>
   )
 }

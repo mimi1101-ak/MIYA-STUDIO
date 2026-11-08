@@ -1,103 +1,95 @@
 "use client"
 
-import { useState, useTransition, type FormEvent } from "react"
+import { useRef, useState, useTransition, type FormEvent } from "react"
 
+import { SectionLabel } from "@/components/space-ui"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { KIND_LABELS } from "@/lib/agenda-types"
-import { formatClock, formatDayLabel, formatDuration } from "@/lib/date"
-import { planQuickInput } from "@/lib/quick-parse"
 import { quickAdd } from "@/lib/schedule-actions"
 import { cn } from "@/lib/utils"
 import { LIMITS } from "@/lib/validation"
 
-type Override = "task" | "event" | null
+type Day = "today" | "tomorrow"
 
-// 한 줄로 할 일/일정 추가. 적는 동안 어떻게 저장될지 미리 보여 줍니다.
-export function QuickAdd({ today, now }: { today: string; now: number }) {
+const DAY_LABELS: Record<Day, string> = { today: "오늘", tomorrow: "내일" }
+
+// 한 줄로 오늘·내일 할 일 추가. 적은 그대로 제목이 되고, 그날 목록 맨 아래에 붙습니다.
+export function QuickAdd() {
+  const [day, setDay] = useState<Day>("today")
   const [text, setText] = useState("")
-  const [override, setOverride] = useState<Override>(null)
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
-
-  const plan = text.trim() ? planQuickInput(text, today, now, override) : null
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!plan) return
+    if (!text.trim()) return
     setMessage(null)
     startTransition(async () => {
-      const result = await quickAdd(text, override)
+      const result = await quickAdd(text, day)
       if (result.ok) {
         setText("")
-        setOverride(null)
         setMessage({ type: "ok", text: result.message ?? "추가했어요." })
+        // 여러 개를 연달아 적을 수 있게 입력 칸에 그대로 둡니다.
+        inputRef.current?.focus()
       } else {
         setMessage({ type: "error", text: result.error })
       }
     })
   }
 
-  const when = plan
-    ? [
-        plan.date ? formatDayLabel(plan.date) : "가장 가까운 빈 시간",
-        plan.start !== null ? formatClock(plan.start) : plan.date ? "빈 시간" : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    : ""
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <div className="flex gap-2">
-        <Input
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value)
-            setMessage(null)
-          }}
-          maxLength={LIMITS.taskTitle}
-          placeholder="예: 금요일 3시 치과 · 보고서 초안 2시간"
-          aria-label="빠른 입력"
-          aria-describedby="quick-add-preview"
-          className="h-11"
-        />
-        <Button type="submit" className="h-11 px-5" disabled={!plan || pending}>
-          {pending ? "추가 중…" : "추가"}
-        </Button>
-      </div>
-
-      <div id="quick-add-preview" className="flex min-h-7 flex-wrap items-center gap-2 text-xs text-dim">
-        {plan ? (
-          <>
-            <div role="group" aria-label="종류 바꾸기" className="flex gap-1">
-              {(["task", "event"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={plan.kind === k}
-                  onClick={() => setOverride(k)}
-                  className={cn(
-                    "h-7 rounded-sm px-2.5 ring-1 ring-foreground/15",
-                    plan.kind === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {KIND_LABELS[k]}
-                </button>
-              ))}
-            </div>
-            <span>
-              {when} · {formatDuration(plan.minutes)} · “{plan.title}”
-            </span>
-          </>
-        ) : message ? (
-          <span role={message.type === "error" ? "alert" : "status"} className={cn(message.type === "error" && "text-destructive")}>
-            {message.text}
-          </span>
-        ) : (
-          <span>시각이 있으면 일정, 없으면 할 일로 넣어요. 할 일은 빈 시간에 자동으로 들어가요.</span>
-        )}
-      </div>
-    </form>
+    <section aria-label="빠른 입력" className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:p-5">
+      <SectionLabel code="INPUT">빠른 입력</SectionLabel>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div role="group" aria-label="언제 할 일인지" className="flex shrink-0 gap-1">
+            {(["today", "tomorrow"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={day === d}
+                onClick={() => {
+                  setDay(d)
+                  setMessage(null)
+                  inputRef.current?.focus()
+                }}
+                className={cn(
+                  "h-11 flex-1 rounded-sm px-4 text-sm ring-1 ring-foreground/15 sm:flex-none",
+                  day === d ? "bg-primary font-medium text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {DAY_LABELS[d]}
+              </button>
+            ))}
+          </div>
+          <div className="flex min-w-0 flex-1 gap-2">
+            <Input
+              ref={inputRef}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value)
+                setMessage(null)
+              }}
+              maxLength={LIMITS.taskTitle}
+              placeholder={`${DAY_LABELS[day]} 할 일 · 예: 보고서 초안 쓰기`}
+              aria-label={`${DAY_LABELS[day]} 할 일`}
+              aria-describedby="quick-add-status"
+              className="h-11 min-w-0"
+            />
+            <Button type="submit" className="h-11 shrink-0 px-5" disabled={!text.trim() || pending}>
+              {pending ? "추가 중…" : "추가"}
+            </Button>
+          </div>
+        </div>
+        <p
+          id="quick-add-status"
+          role={message?.type === "error" ? "alert" : "status"}
+          className={cn("min-h-5 text-xs text-dim", message?.type === "error" && "text-destructive")}
+        >
+          {message ? message.text : `${DAY_LABELS[day]} 할 일 목록 맨 아래에 들어가요.`}
+        </p>
+      </form>
+    </section>
   )
 }

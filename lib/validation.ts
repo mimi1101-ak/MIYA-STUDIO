@@ -17,6 +17,7 @@ export const LIMITS = {
   pastedText: 60000,
   ideaTitle: 200,
   ideaNote: 5000,
+  journalContent: 5000,
 } as const
 
 export const URL_ERROR_MESSAGE =

@@ -11,7 +11,7 @@ import type { GoalPlan } from "@/lib/goal-ai"
 
 import { approvePlan } from "./actions"
 
-// AI가 만든 계획안 (월 → 주 → 일). 승인하면 할 일이 빈 시간에 들어갑니다.
+// AI가 만든 계획안 (월 → 주 → 일). 승인하면 할 일이 날짜별 할 일 목록에 계획 순서대로 들어갑니다.
 export function PlanView({ goalId, plan, approved }: { goalId: string; plan: GoalPlan; approved: boolean }) {
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null)
   const [pending, startTransition] = useTransition()

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 
 import { requireUser } from "@/lib/auth"
 import type { TablesUpdate } from "@/lib/database.types"
-import { kstToMs, msToKst } from "@/lib/date"
+import { msToKst } from "@/lib/date"
 import {
   aiErrorMessage,
   askGoalAssistant,
@@ -14,7 +14,8 @@ import {
   type ChatMessage,
 } from "@/lib/goal-ai"
 import { ideaBriefForGoal } from "@/lib/idea-links"
-import { computePlacements, loadWorkHours } from "@/lib/schedule-db"
+import { loadWorkHours } from "@/lib/schedule-db"
+import { createAppender, dayIso } from "@/lib/task-order"
 import { cleanText, isUuid, LIMITS, type ActionResult } from "@/lib/validation"
 
 const BAD_REQUEST = { ok: false as const, error: "잘못된 요청이에요." }
@@ -90,15 +91,15 @@ export async function sendGoalMessage(
   return { ok: true, goalId: id }
 }
 
-// 계획안 승인: 할 일을 빈 시간에 배치해 저장하고 목표를 '진행 중'으로.
+// 계획안 승인: 할 일을 AI가 정한 날짜 목록 맨 아래에 계획 순서대로 넣고 목표를 '진행 중'으로.
 // 이미 승인한 목표를 다시 승인하면, 아직 안 끝낸 AI 할 일을 새 계획으로 바꿉니다.
 export async function approvePlan(goalId: string): Promise<ActionResult> {
   if (!isUuid(goalId)) return BAD_REQUEST
   const { supabase, userId } = await requireUser()
 
   const { data: goal } = await supabase.from("goals").select("plan").eq("id", goalId).maybeSingle()
-  const now = Date.now()
-  const plan = normalizePlan(goal?.plan, msToKst(now).ymd)
+  const today = msToKst(Date.now()).ymd
+  const plan = normalizePlan(goal?.plan, today)
   if (!plan) return { ok: false, error: "승인할 계획안이 없어요. 먼저 MOMO와 계획을 만들어 주세요." }
 
   const { error: clearError } = await supabase
@@ -109,42 +110,32 @@ export async function approvePlan(goalId: string): Promise<ActionResult> {
     .eq("is_done", false)
   if (clearError) return SAVE_ERROR
 
-  const tasks = planTasks(plan).sort((a, b) => a.date.localeCompare(b.date))
-  let placements
+  // 지난 날짜는 오늘로 둡니다. 같은 날 안에서는 계획 순서를 그대로 지킵니다.
+  const tasks = planTasks(plan)
+    .map((t) => ({ ...t, date: t.date < today ? today : t.date }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  let next: (ymd: string) => number
   try {
-    placements = await computePlacements(
-      supabase,
-      userId,
-      tasks.map((t, i) => ({ id: `p${i}`, minutes: t.minutes, notBefore: Math.max(now, kstToMs(t.date)) }))
-    )
+    next = await createAppender(supabase, tasks.map((t) => t.date))
   } catch {
     return SAVE_ERROR
   }
 
-  const rows = tasks.map((t, i) => {
-    const start = placements.get(`p${i}`) ?? null
-    return {
-      user_id: userId,
-      goal_id: goalId,
-      title: t.title,
-      estimated_minutes: t.minutes,
-      scheduled_at: start === null ? null : new Date(start).toISOString(),
-      source: "ai",
-      sort_order: i,
-    }
-  })
+  const rows = tasks.map((t) => ({
+    user_id: userId,
+    goal_id: goalId,
+    title: t.title,
+    estimated_minutes: t.minutes,
+    scheduled_at: dayIso(t.date),
+    source: "ai",
+    sort_order: next(t.date),
+  }))
   const { error } = await supabase.from("tasks").insert(rows)
   if (error) return SAVE_ERROR
   await supabase.from("goals").update({ status: "active" }).eq("id", goalId)
 
-  const unplaced = rows.filter((r) => r.scheduled_at === null).length
   refresh()
-  return {
-    ok: true,
-    message:
-      `할 일 ${rows.length}개를 일정에 넣었어요.` +
-      (unplaced ? ` ${unplaced}개는 빈 시간이 없어 '시간 미정'에 두었어요.` : ""),
-  }
+  return { ok: true, message: `할 일 ${rows.length}개를 날짜별 할 일 목록에 넣었어요.` }
 }
 
 // alsoIdea: 목표를 완료할 때 이 목표를 만든 아이디어도 '끝냄'으로 바꿀지 (사용자가 고름)

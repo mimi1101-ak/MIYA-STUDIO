@@ -17,7 +17,7 @@
 
 ## 폴더 구조
 - `app/` — 화면(페이지)과 서버 API(route handler: 서버에서 실행되는 기능 주소)
-  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/ideas/`, `app/news/`(트렌드: `eo/`, `longblack/`), `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
+  - `app/page.tsx`(오늘), `app/login/`, `app/calendar/`, `app/goals/`, `app/ideas/`, `app/journal/`(일지), `app/news/`(트렌드: `eo/`, `longblack/`), `app/insights/`(저장한 글), `app/projects/`, `app/profile/` — PRD 5장 화면과 1:1 대응
   - `app/api/` — AI 메시지 생성, 글 수집 같은 서버 전용 기능
 - `components/` — 여러 화면에서 쓰는 화면 조각
 - `components/ui/` — shadcn/ui 기본 부품 (직접 고치지 않음)
@@ -39,7 +39,7 @@
 **보안·데이터**
 - 비밀 값(Supabase 서비스 키, AI API 키 등)은 `.env.local`에만 두고 커밋(변경 기록 저장)하지 않습니다. `.gitignore`에 `.env.local`이 들어 있는지 확인합니다.
 - 비밀 값은 서버 코드(`app/api/`, 서버 컴포넌트)에서만 씁니다. 브라우저에서 보이는 값은 `NEXT_PUBLIC_`으로 시작하는 공개 값만 허용합니다.
-- 사용자 데이터 테이블(profiles, tasks, goals, events, routines, routine_checks, ideas, idea_board_items, daily_messages, insights, projects)은 모두 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. articles는 로그인 사용자 읽기만 허용하고, 쓰기는 서버만 합니다.
+- 사용자 데이터 테이블(profiles, tasks, goals, events, routines, routine_checks, ideas, idea_board_items, journals, monthly_goals, daily_messages, insights, projects)은 모두 RLS(행 단위 보안: 자기 데이터만 읽고 쓰게 막는 규칙)를 켭니다. articles는 로그인 사용자 읽기만 허용하고, 쓰기는 서버만 합니다.
 - 사진 파일은 Storage 비공개 버킷 `idea-boards`에 `사용자ID/아이디어ID/파일` 경로로만 둡니다(자기 폴더만 읽고 쓰는 규칙). 공개 버킷으로 바꾸지 않습니다.
 - DB 구조는 `docs/PRD.md` 6장을 따릅니다. 바꿔야 하면 먼저 사용자에게 묻고, 변경은 `supabase/migrations/`에 새 파일로 남깁니다.
 
@@ -54,7 +54,7 @@
   - MOMO 이미지(`public/momo.png`)는 원본 그대로 크기만 바꿉니다(자르기·색 바꾸기·둥글리기·빛 번짐 금지, 29px 이상). 혼자 떠 있지 않게 보낸 사람 칩·대화 줄·신호 줄(`MomoLine`) 안에 넣습니다(`components/momo-avatar.tsx`).
   - 움직임(별 반짝임, 글자 도착, 신호 점)은 기기의 '동작 줄이기' 설정을 켜면 멈춥니다.
 - 날짜 계산(오늘·이번 주·이번 달, 하루 한 번 메시지)은 한국 시간(Asia/Seoul) 기준으로 합니다. 시각 계산은 `lib/date.ts`의 `kstToMs`/`msToKst`를 씁니다.
-- 할 일의 시각 배치는 AI가 아니라 규칙 코드(`lib/schedule.ts`)가 합니다. AI는 할 일·날짜·예상 시간만 정합니다.
+- 할 일은 시각 없이 **날짜 + 그날 순서**만 가집니다(2026-11-08). 규칙은 `lib/task-order.ts`(날짜는 `scheduled_at`에 그날 한국 0시, 순서는 `sort_order`). AI는 할 일·날짜·예상 시간만 정합니다. 캘린더는 보기 전용(날짜 칸)이고, 순서는 오늘 화면에서 끌어서 바꿉니다.
 
 ## 자주 쓰는 명령
 - `npm install` — 필요한 라이브러리 설치 (처음 한 번, 또는 라이브러리 추가 후)
