@@ -3,9 +3,9 @@
 import { ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 
-import { buttonVariants } from "@/components/ui/button"
+import { MomoCallButton, MomoCallPanel } from "@/components/momo-call"
 import { formatKstTime } from "@/lib/date"
 import { TREND_LINKS } from "@/lib/sources"
 import { cn } from "@/lib/utils"
@@ -35,10 +35,14 @@ const activeClass = "text-foreground before:size-1 before:bg-foreground before:c
 const PC_ITEM = "h-9 rounded-md px-3 text-[13px] tracking-wide"
 
 // 모든 화면 위쪽의 메뉴. 로그인 화면에서는 숨깁니다.
-// PC: 떠 있는 막대(왼쪽 메뉴 · 가운데 MIYA STUDIO · 오른쪽 시계·프로필·MOMO와 대화)
-// 휴대폰·좁은 화면(1024px 미만): 맨 위 줄(MIYA STUDIO · 시계) + 옆으로 미는 메뉴 줄
+// PC: 떠 있는 막대(왼쪽 메뉴 · 가운데 MIYA STUDIO · 오른쪽 시계·프로필·MOMO 호출)
+// 휴대폰·좁은 화면(1024px 미만): 맨 위 줄(MIYA STUDIO · 시계 · MOMO 호출) + 옆으로 미는 메뉴 줄
 export function AppHeader() {
   const pathname = usePathname()
+  // MOMO 호출 창: 메뉴가 화면을 옮겨도 그대로 남아 있어, 대화도 창을 닫기 전까지 이어집니다.
+  const [callOpen, setCallOpen] = useState(false)
+  const closeCall = useCallback(() => setCallOpen(false), [])
+  const toggleCall = () => setCallOpen((open) => !open)
   if (pathname === "/login" || pathname.startsWith("/auth")) return null
 
   const isGroupActive = (group: NavGroup) => group.match.some((path) => pathname.startsWith(path))
@@ -49,7 +53,10 @@ export function AppHeader() {
       <div className="lg:hidden">
         <div className="flex h-12 items-center justify-between px-4">
           <Wordmark />
-          <Clock />
+          <div className="flex items-center gap-2.5">
+            <Clock />
+            <MomoCallButton open={callOpen} onToggle={toggleCall} className="h-8 px-3 text-[13px]" />
+          </div>
         </div>
         <nav aria-label="주 메뉴" className="no-scrollbar overflow-x-auto px-4 pb-2">
           <ul className="flex min-w-max gap-1">
@@ -94,11 +101,10 @@ export function AppHeader() {
         <div className="flex items-center gap-1 justify-self-end">
           <Clock />
           <NavItem href={PROFILE.href} label={PROFILE.label} active={isActive(PROFILE.href, pathname)} />
-          <Link href="/goals/new" className={buttonVariants({ size: "sm", className: "h-9 px-3.5 text-[13px]" })}>
-            MOMO와 대화
-          </Link>
+          <MomoCallButton open={callOpen} onToggle={toggleCall} className="h-9 px-3.5 text-[13px]" />
         </div>
       </div>
+      <MomoCallPanel open={callOpen} onClose={closeCall} />
     </header>
   )
 }
@@ -139,9 +145,11 @@ function subscribeSecond(onChange: () => void) {
 function Clock() {
   const time = useSyncExternalStore(subscribeSecond, () => formatKstTime(Date.now()), () => null)
   return (
-    <span className="px-2 font-mono text-xs tracking-[0.08em] whitespace-nowrap text-muted-foreground tabular-nums">
+    // 휴대폰에서는 MOMO 호출 버튼이 들어갈 자리를 위해 " KST"와 옆 여백을 뺍니다.
+    <span className="font-mono text-xs tracking-[0.08em] whitespace-nowrap text-muted-foreground tabular-nums sm:px-2">
       <span className="sr-only">한국 시각 </span>
-      {time ?? "--:--:--"} KST
+      {time ?? "--:--:--"}
+      <span className="hidden sm:inline"> KST</span>
     </span>
   )
 }
