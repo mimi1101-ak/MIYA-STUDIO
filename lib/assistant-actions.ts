@@ -4,7 +4,15 @@
 
 import { refresh } from "next/cache"
 
-import { applyAssistantActions, askAssistant, loadAssistantContext, type UndoPlan, type UndoRow } from "@/lib/assistant"
+import {
+  applyAssistantActions,
+  askAssistant,
+  loadAssistantContext,
+  runUndo,
+  UNDO_TABLES,
+  type UndoOp,
+  type UndoPlan,
+} from "@/lib/assistant"
 import { requireUser } from "@/lib/auth"
 import { aiErrorMessage, type ChatMessage } from "@/lib/goal-ai"
 import { carryOverPastTasks } from "@/lib/task-order"
@@ -12,7 +20,7 @@ import { cleanText, isUuid, LIMITS, type ActionResult } from "@/lib/validation"
 
 // AI에 보내는 최근 대화 수 (비용 절약)
 const MAX_HISTORY = 12
-// 되돌리기 한 번에 다룰 수 있는 할 일 수
+// 되돌리기 한 번에 다룰 수 있는 행 수
 const MAX_UNDO = 400
 
 export type AssistantResult =
@@ -46,7 +54,7 @@ export async function callMomo(rawHistory: ChatMessage[]): Promise<AssistantResu
     await carryOverPastTasks(supabase, now)
     ctx = await loadAssistantContext(supabase, userId, now)
   } catch {
-    return { ok: false, error: "할 일을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." }
+    return { ok: false, error: "할 일·일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." }
   }
 
   let turn
@@ -61,59 +69,30 @@ export async function callMomo(rawHistory: ChatMessage[]): Promise<AssistantResu
   try {
     applied = await applyAssistantActions(supabase, userId, ctx, turn.actions)
   } catch {
-    return { ok: false, error: "할 일을 바꾸지 못했어요. 잠시 후 다시 시도해 주세요." }
+    return { ok: false, error: "바꾸지 못했어요. 잠시 후 다시 시도해 주세요." }
   }
   const { changes, skipped, undo } = applied
   if (changes.length) refresh()
-  const hasUndo = undo.restore.length + undo.remove.length > 0
-  return { ok: true, reply: turn.reply, changes, skipped, undo: hasUndo ? undo : null }
+  return { ok: true, reply: turn.reply, changes, skipped, undo: undo.length ? undo : null }
 }
 
-function isIsoOrNull(value: unknown): value is string | null {
-  return value === null || (typeof value === "string" && value.length <= 40 && !Number.isNaN(Date.parse(value)))
+function isUndoOp(op: unknown): op is UndoOp {
+  const o = op as UndoOp
+  if (!o || typeof o !== "object" || !UNDO_TABLES.includes(o.table)) return false
+  if (o.kind === "remove") return isUuid(o.id) && o.table !== "routine_checks"
+  if (o.kind !== "restore" || !o.row || typeof o.row !== "object" || Array.isArray(o.row)) return false
+  return o.table === "routine_checks" ? isUuid(o.row.routine_id) : isUuid(o.row.id)
 }
 
-function isUndoRow(row: unknown): row is UndoRow {
-  const r = row as UndoRow
-  return (
-    !!r &&
-    isUuid(r.id) &&
-    isIsoOrNull(r.scheduled_at) &&
-    Number.isInteger(r.sort_order) &&
-    Number.isInteger(r.carry_count) &&
-    r.carry_count >= 0 &&
-    typeof r.is_done === "boolean" &&
-    isIsoOrNull(r.done_at)
-  )
-}
-
-// 되돌리기: 그 답에서 바꾼 할 일을 원래 값으로, 새로 만든 할 일은 지웁니다(내 할 일만 — RLS + user_id 조건).
+// 되돌리기: 그 답에서 바꾸거나 지운 것을 원래 모습으로 다시 넣고, 새로 만든 것은 지웁니다.
+// 내 데이터만 바뀝니다(RLS + user_id를 늘 로그인한 사용자로).
 export async function undoMomo(plan: UndoPlan): Promise<ActionResult> {
-  const restore = Array.isArray(plan?.restore) ? plan.restore : null
-  const remove = Array.isArray(plan?.remove) ? plan.remove : null
-  if (!restore || !remove || restore.length + remove.length === 0 || restore.length + remove.length > MAX_UNDO) {
+  if (!Array.isArray(plan) || plan.length === 0 || plan.length > MAX_UNDO || !plan.every(isUndoOp)) {
     return { ok: false, error: "잘못된 요청이에요." }
   }
-  if (!restore.every(isUndoRow) || !remove.every(isUuid)) return { ok: false, error: "잘못된 요청이에요." }
   const { supabase, userId } = await requireUser()
-
-  const results = await Promise.all([
-    ...(remove.length ? [supabase.from("tasks").delete().in("id", remove).eq("user_id", userId)] : []),
-    ...restore.map((r) =>
-      supabase
-        .from("tasks")
-        .update({
-          scheduled_at: r.scheduled_at,
-          sort_order: r.sort_order,
-          carry_count: r.carry_count,
-          is_done: r.is_done,
-          done_at: r.done_at,
-        })
-        .eq("id", r.id)
-        .eq("user_id", userId)
-    ),
-  ])
+  const ok = await runUndo(supabase, userId, plan)
   refresh()
-  if (results.some((r) => r.error)) return { ok: false, error: "일부를 되돌리지 못했어요. 할 일 목록을 확인해 주세요." }
+  if (!ok) return { ok: false, error: "일부를 되돌리지 못했어요. 목록을 확인해 주세요." }
   return { ok: true, message: "원래대로 되돌렸어요." }
 }

@@ -155,7 +155,9 @@ async function MonthlyGoalsPanel() {
   await requireUser()
   const month = monthStartKST()
   const result = await listMonthlyGoals(month)
-  return <MonthlyGoals key={month} thisMonth={month} initialGoals={result.ok ? result.goals : null} />
+  // MOMO 호출 등으로 목록이 바뀌면 key가 바뀌어 화면 목록도 새로 맞춰집니다(이 칸은 처음 받은 목록을 화면 안에서 들고 있어서).
+  const version = result.ok ? result.goals.map((g) => `${g.id}:${g.done ? 1 : 0}:${g.title}`).join("|") : "error"
+  return <MonthlyGoals key={`${month}|${version}`} thisMonth={month} initialGoals={result.ok ? result.goals : null} />
 }
 
 async function WeeklyGoals() {
