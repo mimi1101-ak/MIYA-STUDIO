@@ -21,7 +21,7 @@ import { loadWorkHours, type Supabase } from "@/lib/schedule-db"
 import { createAppender, dayIso, TASK_ORDER, ymdOf } from "@/lib/task-order"
 import { isDuration, isValidDate, isWeekdayList, LIMITS } from "@/lib/validation"
 
-// MOMO 호출: 어느 화면에서든 MOMO를 불러 말하면, MOMO가 할 일·일정·루틴·월별 목표·목표를 보고
+// MOMO 호출: 어느 화면에서든 MOMO를 불러 말하면, MOMO가 할 일·일정·루틴·월별 목표·목표·Dream을 보고
 // 바로 추가·수정·삭제한 뒤 설명합니다.
 // - AI는 "무엇을 어떻게 바꿀지"만 정하고, 실제 저장은 아래 규칙 코드가 검사한 뒤 합니다.
 // - 할 일은 시각 없이 날짜 + 그날 순서만 가집니다(lib/task-order.ts).
@@ -34,6 +34,8 @@ const LOOK_AHEAD_DAYS = 14
 const MAX_AHEAD_DAYS = 120
 // MOMO에게 보여 주는 개수 상한(비용 절약)
 const MAX_CONTEXT_TASKS = 150
+// 14일 뒤부터 다음 달 말일까지의 할 일(목표 화면 '다음 달 할 일'을 MOMO도 다루게)
+const MAX_LATER_TASKS = 80
 const MAX_UNSCHEDULED = 40
 const MAX_EVENTS = 80
 // 한 번에 반영할 변경 수 상한
@@ -55,6 +57,7 @@ type CtxTask = {
 type CtxEvent = { ref: string; id: string; title: string; start: number; end: number }
 type CtxRoutine = { ref: string; id: string; title: string; weekdays: number[]; start: number; minutes: number }
 type CtxMonthly = { ref: string; id: string; title: string; month: string; done: boolean }
+type CtxDream = { ref: string; id: string; title: string; done: boolean }
 type CtxGoal = {
   ref: string
   id: string
@@ -74,10 +77,11 @@ export type AssistantContext = {
   routines: CtxRoutine[]
   monthly: CtxMonthly[]
   goals: CtxGoal[]
+  dreams: CtxDream[]
 }
 
 // 되돌리기: 새로 만든 행은 지우고(remove), 바꾸거나 지운 행은 바꾸기 전 모습 그대로 다시 넣습니다(restore).
-export const UNDO_TABLES = ["goals", "tasks", "events", "routines", "routine_checks", "monthly_goals"] as const
+export const UNDO_TABLES = ["goals", "tasks", "events", "routines", "routine_checks", "monthly_goals", "dreams"] as const
 export type UndoTable = (typeof UNDO_TABLES)[number]
 export type UndoOp =
   | { table: UndoTable; kind: "remove"; id: string }
@@ -118,14 +122,18 @@ const ACTION_TYPES = [
   "monthly_delete",
   "goal_edit",
   "goal_delete",
+  "dream_add",
+  "dream_edit",
+  "dream_delete",
 ] as const
 
 const SYSTEM_PROMPT = `당신은 MIYA STUDIO의 마스코트 캐릭터 MOMO입니다. 사용자가 어느 화면에서든 불러 말을 거는 개인 비서입니다. 사용자는 이 앱을 혼자 쓰는 개인입니다.
-사용자는 당신에게 할 일·일정·루틴·월별 목표·목표를 추가하고, 고치고, 지울 권한을 모두 맡겼습니다. 당신이 actions에 적은 변경은 앱이 사용자 확인 없이 즉시 반영합니다. 사용자는 답마다 '되돌리기'를 누를 수 있습니다. 반영했으면 reply에서 무엇을 왜 바꿨는지 설명합니다.
+사용자는 당신에게 할 일·일정·루틴·월별 목표·목표·Dream을 추가하고, 고치고, 지울 권한을 모두 맡겼습니다.
+Dream은 사용자가 기한 없이 오래 품는 큰 목표(삶의 방향)입니다. 월별 목표는 그 달의 목표, 목표(G)는 MOMO와 계획을 세워 할 일로 쪼갠 목표입니다. 당신이 actions에 적은 변경은 앱이 사용자 확인 없이 즉시 반영합니다. 사용자는 답마다 '되돌리기'를 누를 수 있습니다. 반영했으면 reply에서 무엇을 왜 바꿨는지 설명합니다.
 
 생각하는 방식 — 계획은 지켜야 할 약속이 아니라, 오늘의 상태에 맞춰 고쳐 쓰는 도구입니다.
 - 미루는 것은 실패가 아닙니다. 오늘 할 수 있는 만큼으로 줄이고, 꼭 해야 할 것에 힘을 모으게 돕습니다.
-- 우선순위: (1) 마감이 가까운 목표의 할 일, 미루면 마감을 넘길 위험이 있는 일 (2) 다른 일의 앞 단계 (3) 여러 번 미룬 일(작게 시작하게) (4) 나머지.
+- 우선순위: (1) 마감이 가까운 목표의 할 일, 미루면 마감을 넘길 위험이 있는 일 (2) 다른 일의 앞 단계 (3) 이번 달 목표·Dream에 가까워지는 일 (4) 여러 번 미룬 일(작게 시작하게) (5) 나머지. 고를 때 그 일이 어떤 Dream·이번 달 목표와 이어지는지 한 줄로 말해 주면 동기가 됩니다.
 - 오늘 남은 일할 시간과 사용자의 기력, 그날의 일정을 함께 봅니다. 오늘 목록의 예상 시간 합계가 남은 시간보다 많으면 덜어 냅니다.
 - 미룰 때는 내일에 몰지 않습니다. 날짜별 합계와 일정을 보고 일하는 날에 고르게 나눕니다. 목표 마감일은 넘기지 않습니다. 마감을 지키기 어려우면 솔직하게 말하고 방법을 제안합니다.
 - 사용자의 말과 관련된 것만 바꿉니다. 관계없는 것은 그대로 둡니다.
@@ -142,7 +150,7 @@ const SYSTEM_PROMPT = `당신은 MIYA STUDIO의 마스코트 캐릭터 MOMO입�
 - 한 번에 5개 이상 지우거나 목표(goal_delete)를 지울 때는, 사용자가 그 대상을 이미 콕 집어 확인해 준 경우가 아니면 먼저 무엇을 지울지 말하고 확인을 받습니다. 목표를 지우면 그 목표의 안 끝낸 할 일도 함께 지워지고, 끝낸 할 일은 기록으로 남는다고 알려 줍니다.
 - 미루면 되는 일은 지우지 말고 옮깁니다. 할 일을 '날짜 미정'으로 빼는 것은 task_move에 date "none"입니다.
 
-할 수 있는 변경(actions) — 각 항목은 모든 칸을 갖고, 쓰지 않는 칸은 null로 둡니다. target·tasks·goal에는 참고 정보의 번호(T·E·R·M·G)를 씁니다.
+할 수 있는 변경(actions) — 각 항목은 모든 칸을 갖고, 쓰지 않는 칸은 null로 둡니다. target·tasks·goal에는 참고 정보의 번호(T·E·R·M·G·D)를 씁니다.
 - task_add: title(구체적인 행동으로 짧게), date(YYYY-MM-DD, 날짜 미정이면 "none"), minutes(예상 시간 5~720분, 모르면 30), goal(관련 목표 G번호 또는 null). 그날 목록 맨 아래에 들어갑니다.
 - task_edit: target(T), 바꿀 것만 채움 — title, minutes, goal(G번호, 목표 연결을 끊으려면 "none"). 날짜는 task_move로 바꿉니다.
 - task_move: target(T), date(YYYY-MM-DD 또는 날짜 미정 "none"). 오늘보다 이전 날짜는 안 됩니다. 옮긴 할 일은 그날 목록 맨 아래에 붙습니다.
@@ -160,10 +168,13 @@ const SYSTEM_PROMPT = `당신은 MIYA STUDIO의 마스코트 캐릭터 MOMO입�
 - monthly_delete: target(M).
 - goal_edit: target(G), 바꿀 것만 채움 — title, date(새 마감일 YYYY-MM-DD, 마감을 없애려면 "none"), status("done"이면 완료, "active"면 다시 진행 중). 'MOMO와 대화 중'인 목표의 상태는 바꾸지 않습니다(계획 승인은 목표 화면에서).
 - goal_delete: target(G).
+- dream_add: title(오래 품을 큰 목표를 한 줄로).
+- dream_edit: target(D), 바꿀 것만 채움 — title, done(true면 이룸, false면 이룸 취소).
+- dream_delete: target(D). Dream은 사용자가 콕 집어 지워 달라고 할 때만 지웁니다.
 - 할 일 하나에 서로 다른 변경을 겹쳐 넣지 않습니다(task_order는 예외). 지운 것을 같은 차례에 다시 고치지 않습니다.
 
 답변 형식
-- reply: 한국어 존댓말, 이모지 없이, 차분하고 다정하게 2~6문장. 바꾼 것이 있으면 핵심과 이유를 짧게 말합니다. 앱이 바꾼 목록을 따로 보여 주므로 하나하나 다 나열하지 않아도 됩니다. 번호(T·E·R·M·G)는 사용자에게 보이지 않으니 reply에서는 제목으로 말합니다.
+- reply: 한국어 존댓말, 이모지 없이, 차분하고 다정하게 2~6문장. 바꾼 것이 있으면 핵심과 이유를 짧게 말합니다. 앱이 바꾼 목록을 따로 보여 주므로 하나하나 다 나열하지 않아도 됩니다. 번호(T·E·R·M·G·D)는 사용자에게 보이지 않으니 reply에서는 제목으로 말합니다.
 - reply 줄바꿈: 작은 대화창에서 읽기 쉽게 문장마다 줄을 바꾸고(\\n), 내용이 바뀌는 곳(공감 → 지금 할 일·바꾼 것 → 당부)에는 빈 줄(\\n\\n)을 넣습니다. 번호를 붙인 질문은 한 줄에 하나씩 씁니다.
 - actions: 이번 차례에 반영할 변경. 질문만 하는 차례에는 빈 목록.
 - 이전 MOMO 답 끝의 "[앱이 반영한 것]"은 이미 반영된 내용입니다("되돌림"이 붙었으면 사용자가 되돌린 것). 참고 정보는 매번 지금 상태로 새로 붙습니다.`
@@ -212,7 +223,7 @@ function nextMonthStart(ymd: string): string {
   return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`
 }
 
-// 오늘부터 14일 동안의 할 일·일정 + 날짜 미정 할 일 + 오늘 끝낸 할 일 + 루틴 + 이번 달·다음 달 월별 목표 + 목표 + 일하는 시간
+// 오늘부터 14일 동안의 할 일·일정 + 그 뒤 다음 달 말일까지의 할 일 + 날짜 미정 할 일 + 오늘 끝낸 할 일 + 루틴 + 이번 달·다음 달 월별 목표 + 목표 + 일하는 시간
 export async function loadAssistantContext(supabase: Supabase, userId: string, now: number): Promise<AssistantContext> {
   const today = msToKst(now).ymd
   const columns = "id, title, scheduled_at, is_done, estimated_minutes, goal_id, carry_count"
@@ -225,8 +236,17 @@ export async function loadAssistantContext(supabase: Supabase, userId: string, n
     .lt("scheduled_at", dayIso(addDays(today, LOOK_AHEAD_DAYS)))
   for (const o of TASK_ORDER) upcomingQuery = upcomingQuery.order(o.column, { ascending: o.ascending })
 
-  const [upcoming, unscheduled, doneToday, events, routines, monthly, goals, progress, work] = await Promise.all([
+  let laterQuery = supabase
+    .from("tasks")
+    .select(columns)
+    .eq("is_done", false)
+    .gte("scheduled_at", dayIso(addDays(today, LOOK_AHEAD_DAYS)))
+    .lt("scheduled_at", dayIso(nextMonthStart(nextMonthStart(today))))
+  for (const o of TASK_ORDER) laterQuery = laterQuery.order(o.column, { ascending: o.ascending })
+
+  const [upcoming, later, unscheduled, doneToday, events, routines, monthly, goals, progress, work, dreams] = await Promise.all([
     upcomingQuery.limit(MAX_CONTEXT_TASKS),
+    laterQuery.limit(MAX_LATER_TASKS),
     supabase
       .from("tasks")
       .select(columns)
@@ -260,9 +280,11 @@ export async function loadAssistantContext(supabase: Supabase, userId: string, n
     supabase.from("goals").select("id, title, deadline, status").neq("status", "archived").order("created_at"),
     loadGoalProgress(supabase, weekStartOf(today)),
     loadWorkHours(supabase, userId),
+    supabase.from("dreams").select("id, title, is_done").order("sort_order").order("created_at"),
   ])
   if (
     upcoming.error ||
+    later.error ||
     unscheduled.error ||
     doneToday.error ||
     events.error ||
@@ -275,7 +297,7 @@ export async function loadAssistantContext(supabase: Supabase, userId: string, n
   }
 
   // DB 정렬은 같은 날 안에서만 맞으니 날짜 순으로 한 번 더(같은 날은 순서 유지)
-  const dated = upcoming.data
+  const dated = [...upcoming.data, ...later.data]
     .map((t, index) => ({ t, ymd: ymdOf(t.scheduled_at!), index }))
     .sort((a, b) => a.ymd.localeCompare(b.ymd) || a.index - b.index)
   const rows = [...dated.map((d) => d.t), ...unscheduled.data, ...doneToday.data]
@@ -320,6 +342,8 @@ export async function loadAssistantContext(supabase: Supabase, userId: string, n
       done: progressById.get(g.id)?.done ?? 0,
       total: progressById.get(g.id)?.total ?? 0,
     })),
+    // Dream 표를 아직 만들지 않았거나 못 읽어도 나머지는 그대로 씁니다.
+    dreams: (dreams.data ?? []).map((d, i) => ({ ref: `D${i + 1}`, id: d.id, title: d.title, done: d.is_done })),
   }
 }
 
@@ -348,8 +372,12 @@ function contextBlock(ctx: AssistantContext): string {
       ? `오늘 남은 일할 시간: ${left > 0 ? formatDuration(left) : "없음(일하는 시간이 지났어요)"}`
       : "오늘은 일하는 요일이 아닙니다.",
     "",
-    "목표:",
+    "Dream(기한 없는 큰 목표):",
   ]
+  if (ctx.dreams.length === 0) lines.push("- 없음")
+  for (const d of ctx.dreams) lines.push(`- ${d.ref} "${d.title}"${d.done ? " · 이룸" : ""}`)
+
+  lines.push("", "목표:")
   if (ctx.goals.length === 0) lines.push("- 없음")
   for (const g of ctx.goals) {
     const progress = g.status === "active" ? ` · 전체 진척 ${percent(g.done, g.total)}%` : ""
@@ -393,6 +421,12 @@ function contextBlock(ctx: AssistantContext): string {
     }
     for (const t of dayTasks) lines.push(taskLine(t))
   }
+
+  const lookAheadEnd = addDays(today, LOOK_AHEAD_DAYS)
+  const later = ctx.tasks.filter((t) => !t.done && t.ymd !== null && t.ymd >= lookAheadEnd)
+  lines.push("", `그 뒤 다음 달 말일까지의 할 일 (${lookAheadEnd}부터, 날짜순·그날 순서):`)
+  if (later.length === 0) lines.push("- 없음")
+  for (const t of later) lines.push(`${taskLine(t)} · ${t.ymd} (${WEEKDAYS[weekdayOf(t.ymd!)]})`)
 
   const unscheduled = ctx.tasks.filter((t) => !t.done && t.ymd === null)
   lines.push("", "날짜 미정 할 일:")
@@ -493,6 +527,7 @@ export async function applyAssistantActions(
   const findRoutine = lookup(ctx.routines)
   const findMonthly = lookup(ctx.monthly)
   const findGoal = lookup(ctx.goals)
+  const findDream = lookup(ctx.dreams)
 
   const out: Results = { changes: [], skipped: 0, undo: [] }
   const seen = new Set<string>()
@@ -931,6 +966,72 @@ export async function applyAssistantActions(
         }
         break
       }
+      // ── Dream ──
+      case "dream_add": {
+        const title = str(a.title, LIMITS.goalTitle)
+        if (!title) {
+          skip()
+          break
+        }
+        const { data: existing, error: readError } = await supabase.from("dreams").select("sort_order")
+        if (readError) {
+          skip()
+          break
+        }
+        const sortOrder = existing.reduce((max, d) => Math.max(max, d.sort_order + 1), 0)
+        const { data, error } = await supabase
+          .from("dreams")
+          .insert({ user_id: userId, title, sort_order: sortOrder })
+          .select("id")
+          .single()
+        if (error) {
+          skip()
+          break
+        }
+        out.undo.push({ table: "dreams", kind: "remove", id: data.id })
+        out.changes.push(`새 Dream '${title}'`)
+        break
+      }
+      case "dream_edit": {
+        const d = findDream(a.target)
+        if (!d || gone.has(d.id)) {
+          skip()
+          break
+        }
+        const update: { title?: string; is_done?: boolean } = {}
+        const notes: string[] = []
+        const title = str(a.title, LIMITS.goalTitle)
+        if (title && title !== d.title) {
+          update.title = title
+          notes.push(`제목 '${title}'`)
+        }
+        if (typeof a.done === "boolean" && a.done !== d.done) {
+          update.is_done = a.done
+          notes.push(a.done ? "이룸" : "이룸 취소")
+        }
+        if (notes.length === 0 || !(await remember("dreams", d.id))) {
+          skip()
+          break
+        }
+        const { error } = await supabase.from("dreams").update(update).eq("id", d.id).eq("user_id", userId)
+        if (error) skip()
+        else out.changes.push(`Dream '${d.title}': ${notes.join(", ")}`)
+        break
+      }
+      case "dream_delete": {
+        const d = findDream(a.target)
+        if (!d || gone.has(d.id) || !(await remember("dreams", d.id))) {
+          skip()
+          break
+        }
+        const { error } = await supabase.from("dreams").delete().eq("id", d.id).eq("user_id", userId)
+        if (error) skip()
+        else {
+          gone.add(d.id)
+          out.changes.push(`Dream '${d.title}' 삭제`)
+        }
+        break
+      }
       default:
         skip()
     }
@@ -999,6 +1100,7 @@ const RESTORE_COLUMNS: Record<UndoTable, string[]> = {
   routines: ["id", "title", "weekdays", "start_time", "duration_minutes", "created_at"],
   routine_checks: ["routine_id", "check_date", "created_at"],
   monthly_goals: ["id", "month", "title", "is_done", "sort_order", "created_at"],
+  dreams: ["id", "title", "is_done", "sort_order", "created_at"],
 }
 
 export function restoreRow(table: UndoTable, row: Record<string, unknown>, userId: string): Record<string, unknown> {
@@ -1007,7 +1109,7 @@ export function restoreRow(table: UndoTable, row: Record<string, unknown>, userI
   return clean
 }
 
-// 되돌리기 실행: 새로 만든 것을 지우고 → 목표 → 할 일 → 일정 → 루틴 → 루틴 체크 → 월별 목표 순서로 원래 모습을 다시 넣습니다.
+// 되돌리기 실행: 새로 만든 것을 지우고 → 목표 → 할 일 → 일정 → 루틴 → 루틴 체크 → 월별 목표 → Dream 순서로 원래 모습을 다시 넣습니다.
 export async function runUndo(supabase: Supabase, userId: string, plan: UndoPlan): Promise<boolean> {
   let ok = true
   const removes = plan.filter((op) => op.kind === "remove")

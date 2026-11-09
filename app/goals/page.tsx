@@ -2,27 +2,120 @@ import { Sparkles } from "lucide-react"
 import Link from "next/link"
 import { Suspense } from "react"
 
+import { DreamList } from "@/components/goals/dream-list"
+import { NextMonthTasks, type MonthTask } from "@/components/goals/next-month-tasks"
 import { LoadingBlock, PageShell } from "@/components/page-shell"
-import { SegmentBar } from "@/components/space-ui"
+import { SectionLabel, SegmentBar } from "@/components/space-ui"
+import { MonthlyGoals } from "@/components/today/monthly-goals"
 import { buttonVariants } from "@/components/ui/button"
 import { loadGoalProgress } from "@/lib/agenda"
 import { percent } from "@/lib/agenda-types"
 import { requireUser } from "@/lib/auth"
-import { formatDayLabel, formatDuration, weekStartKST } from "@/lib/date"
+import { addDays, formatDayLabel, formatDuration, monthStartKST, weekStartKST } from "@/lib/date"
+import { listDreams } from "@/lib/dreams"
+import { listMonthlyGoals, type MonthlyGoalsResult } from "@/lib/monthly-goals"
+import { dayIso, TASK_ORDER, ymdOf } from "@/lib/task-order"
 
+// 목표 화면: Dream(큰 목표) → 이번 달 목표 · 다음 달 목표·할 일 → MOMO와 세운 목표
 export default function GoalsPage() {
   return (
-    <PageShell title="목표" description="목표를 정하면 MOMO가 할 일을 쪼개서 일정에 넣어 드려요.">
-      <div>
-        <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "h-11 px-5" })}>
-          <Sparkles data-icon="inline-start" />
-          새 목표 · MOMO와 대화
-        </Link>
-      </div>
-      <Suspense fallback={<LoadingBlock lines={5} />}>
-        <GoalList />
+    <PageShell title="목표" description="Dream을 품고, 이번 달과 다음 달을 정하고, 큰 목표는 MOMO와 계획을 세워요.">
+      <Suspense fallback={<LoadingBlock lines={8} />}>
+        <PlanningBoard />
       </Suspense>
+
+      <section aria-label="MOMO와 세운 목표" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-1.5">
+            <SectionLabel code="PLAN">MOMO와 세운 목표</SectionLabel>
+            <p className="text-sm text-muted-foreground">목표를 정하면 MOMO가 할 일을 쪼개서 일정에 넣어 드려요.</p>
+          </div>
+          <Link href="/goals/new" className={buttonVariants({ size: "lg", className: "h-11 self-start px-5" })}>
+            <Sparkles data-icon="inline-start" />
+            새 목표 · MOMO와 대화
+          </Link>
+        </div>
+        <Suspense fallback={<LoadingBlock lines={5} />}>
+          <GoalList />
+        </Suspense>
+      </section>
     </PageShell>
+  )
+}
+
+function nextMonthOf(month: string): string {
+  const d = new Date(`${month}T00:00:00Z`)
+  d.setUTCMonth(d.getUTCMonth() + 1, 1)
+  return d.toISOString().slice(0, 10)
+}
+
+// 목록이 바뀌면(MOMO 호출 등) key가 바뀌어 칸이 새 목록으로 다시 그려지게 합니다.
+function versionOf(items: { id: string; title: string; done: boolean }[] | null): string {
+  return items ? items.map((i) => `${i.id}:${i.done ? 1 : 0}:${i.title}`).join("|") : "error"
+}
+
+function monthVersion(result: MonthlyGoalsResult): string {
+  return versionOf(result.ok ? result.goals : null)
+}
+
+// Dream · 이번 달 목표 · 다음 달 목표 · 다음 달 할 일
+async function PlanningBoard() {
+  const { supabase } = await requireUser()
+  const thisMonth = monthStartKST()
+  const nextMonth = nextMonthOf(thisMonth)
+  const afterNext = nextMonthOf(nextMonth)
+
+  let tasksQuery = supabase
+    .from("tasks")
+    .select("id, title, scheduled_at, is_done")
+    .gte("scheduled_at", dayIso(nextMonth))
+    .lt("scheduled_at", dayIso(afterNext))
+  for (const o of TASK_ORDER) tasksQuery = tasksQuery.order(o.column, { ascending: o.ascending })
+
+  const [dreams, current, next, tasks] = await Promise.all([
+    listDreams(),
+    listMonthlyGoals(thisMonth),
+    listMonthlyGoals(nextMonth),
+    tasksQuery,
+  ])
+  // 같은 날 안의 순서는 DB 정렬로 맞으니, 날짜 순으로 한 번 더(같은 날은 순서 유지)
+  const monthTasks: MonthTask[] = (tasks.data ?? [])
+    .map((t, index) => ({ id: t.id, title: t.title, ymd: ymdOf(t.scheduled_at!), done: t.is_done, index }))
+    .sort((a, b) => a.ymd.localeCompare(b.ymd) || a.index - b.index)
+    .map((t) => ({ id: t.id, title: t.title, ymd: t.ymd, done: t.done }))
+
+  return (
+    <div className="flex flex-col gap-4 md:gap-5">
+      <DreamList
+        key={versionOf(dreams.ok ? dreams.dreams : null)}
+        initialDreams={dreams.ok ? dreams.dreams : null}
+      />
+      <div className="grid items-start gap-4 md:grid-cols-2 md:gap-5">
+        <MonthlyGoals
+          key={`${thisMonth}|${monthVersion(current)}`}
+          thisMonth={thisMonth}
+          initialGoals={current.ok ? current.goals : null}
+          navigable={false}
+          code="MONTH"
+          title="이번 달 목표"
+        />
+        <div className="flex flex-col gap-4 md:gap-5">
+          <MonthlyGoals
+            key={`${nextMonth}|${monthVersion(next)}`}
+            thisMonth={nextMonth}
+            initialGoals={next.ok ? next.goals : null}
+            navigable={false}
+            code="NEXT"
+            title="다음 달 목표"
+          />
+          {tasks.error ? (
+            <p className="text-sm text-destructive">다음 달 할 일을 불러오지 못했어요.</p>
+          ) : (
+            <NextMonthTasks month={nextMonth} lastDay={addDays(afterNext, -1)} tasks={monthTasks} />
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
